@@ -32,10 +32,10 @@ const Home = () => {
         const handleResize = () => {
             setShowMobilePreview(window.innerWidth < 768);
         };
-        
+
         window.addEventListener('resize', handleResize);
         handleResize(); // Initial check
-        
+
         return () => {
             clearInterval(interval);
             window.removeEventListener('resize', handleResize);
@@ -87,7 +87,7 @@ const Home = () => {
                         >
                             Cerrar sesión
                         </button>
-                        
+
                         {/* Mobile preview toggle button - only visible on mobile */}
                         <button
                             className="md:hidden bg-[#7b1fa2] text-white px-3 py-2 rounded"

@@ -45,7 +45,7 @@ const Layout = () => {
                         <CiMonitor size={20} />
                         <span>Monitor</span>
                     </div>
-                    
+
                     {/* Enlace al componente Mensaje (Home) */}
                     <div
                         className={`flex items-center gap-2 p-3 rounded hover:bg-[#7b1fa2] cursor-pointer ${activeRoute === '/home' ? 'bg-[#7b1fa2]' : ''}`}
@@ -55,7 +55,7 @@ const Layout = () => {
                         <FontAwesomeIcon icon={faWhatsapp} className="w-5 h-5 text-white" />
                         <span>Mensaje</span>
                     </div>
-                    
+
                     {/* Nuevo enlace al componente Admin */}
                     <div
                         className={`flex items-center gap-2 p-3 rounded hover:bg-[#7b1fa2] cursor-pointer ${activeRoute === '/admin' ? 'bg-[#7b1fa2]' : ''}`}
@@ -67,8 +67,8 @@ const Layout = () => {
                     </div>
                 </nav>
             </div>
-            <div className="flex-1" style={{ position: 'relative', zIndex: 1 }}> 
-                <Outlet /> 
+            <div className="flex-1" style={{ position: 'relative', zIndex: 1 }}>
+                <Outlet />
             </div>
         </div>
     )
