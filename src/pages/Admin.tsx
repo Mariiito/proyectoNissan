@@ -52,6 +52,12 @@ interface Credencial {
   actualizado: string;
 }
 
+interface CampanaForm {
+  nombre: string;
+  descripcion: string;
+  usuario: string;
+  subcuenta: number | null;
+}
 
 const Admin: React.FC = () => {
   const navigate = useNavigate();
@@ -103,10 +109,16 @@ const Admin: React.FC = () => {
   const [credencialSeleccionada, setCredencialSeleccionada] = useState<number>(0);
   const [CantidadCredenciales, setCantidadCredenciales] = useState<number>(0);
 
+  // Estado para el formulario de campaña
+  const [campanaForm, setCampanaForm] = useState<CampanaForm>({
+    nombre: '',
+    descripcion: '',
+    usuario: '',
+    subcuenta: null,
+  });
 
   // Refs
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
   // Efectos
   useEffect(() => {
     if (textareaRef.current) {
@@ -142,10 +154,28 @@ const Admin: React.FC = () => {
     setCantidadCredenciales(CantidadCredenciales > 0 ? CantidadCredenciales - 1 : 0);
   };
 
+  // Handler para el formulario de campaña
+  const handleCampanaFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setCampanaForm(prevForm => ({
+      ...prevForm,
+      [name]: value,
+    }));
+  };
+
+  const handleCampanaFormSubmit = () => {
+    // Aquí puedes hacer algo con los datos del formulario, como enviarlos a un servidor.
+    alert(`Creando campaña con nombre: ${campanaForm.nombre}, descripción: ${campanaForm.descripcion}, usuario: ${campanaForm.usuario}, subcuenta: ${campanaForm.subcuenta}`);
+  };
+
 
   // Options para Selects
   const subcuentasOptions = subcuentas.map(subcuenta => (
-    <option key={subcuenta.id} value={subcuenta.id}>
+    <option
+      key={subcuenta.id}
+      value={subcuenta.id}
+      style={{ color: 'black' }}  // Aseguramos que el texto sea siempre negro
+    >
       {subcuenta.nombre}
     </option>
   ));
@@ -260,7 +290,6 @@ const Admin: React.FC = () => {
             </div>
           </div>
         )}
-
         {tabActiva === 'subcuentas-tab' && (
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white">
@@ -405,16 +434,32 @@ const Admin: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-800 mb-6">Crear credenciales</h2>
           <div className="mb-6">
             <label className="block font-medium text-gray-700 mb-1">Nombre de la credencial</label>
-            <input type="text" placeholder="Nombre" value={nombreCredencial} onChange={(e) => setNombreCredencial(e.target.value)} className="w-full p-2 border border-gray-300 rounded mb-2" />
+            <input
+              type="text"
+              placeholder="Nombre"
+              value={nombreCredencial}
+              onChange={(e) => setNombreCredencial(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded mb-2"
+            />
             <div className="text-right text-sm text-gray-500">{nombreCredencial.length} / 50</div>
           </div>
           <div className="mb-6">
             <label className="block font-medium text-gray-700 mb-1">Credencial en formato JSON</label>
-            <textarea ref={textareaRef} value={jsonCredencial} onChange={(e) => setJsonCredencial(e.target.value)} className="w-full p-2 border border-gray-300 rounded mb-2 h-40 text-black" />
+            <textarea
+              ref={textareaRef}
+              value={jsonCredencial}
+              onChange={(e) => setJsonCredencial(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded mb-2 h-40 text-black"
+            />
             <div className="text-right text-sm text-gray-500">{jsonCredencial.length}</div>
           </div>
           <div className="flex justify-end">
-            <button className="flex items-center gap-2 px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]" onClick={handleCrearCredencial}>Crear credencial <FaPencilAlt /></button>
+            <button
+              className="flex items-center gap-2 px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
+              onClick={handleCrearCredencial}
+            >
+              Crear credencial <FaPencilAlt />
+            </button>
           </div>
         </div>
         )}
@@ -426,7 +471,13 @@ const Admin: React.FC = () => {
             {/* Usuario */}
             <div className="mb-6">
               <label className="block font-medium text-gray-700 mb-1">Usuario</label>
-              <input type="email" placeholder="Correo" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-2 border border-gray-300 rounded mb-2" />
+              <input
+                type="email"
+                placeholder="Correo"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded mb-2"
+              />
               <div className="flex gap-2">
                 <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Buscar</button>
                 <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Lista de usuarios</button>
@@ -436,7 +487,11 @@ const Admin: React.FC = () => {
             {/* Subcuenta */}
             <div className="mb-6">
               <label className="block font-medium text-gray-700 mb-1">Subcuenta</label>
-              <select value={subcuentaSeleccionada} onChange={(e) => setSubcuentaSeleccionada(Number(e.target.value))} className="w-full p-2 border border-gray-300 rounded">
+              <select
+                value={subcuentaSeleccionada}
+                onChange={(e) => setSubcuentaSeleccionada(Number(e.target.value))}
+                className="w-full p-2 border border-gray-300 rounded"
+              >
                 <option value={0}>Seleccionar compañia</option>
                 {subcuentasOptions}
               </select>
@@ -445,7 +500,11 @@ const Admin: React.FC = () => {
             {/* Numero Telefonico */}
             <div className="mb-6">
               <label className="block font-medium text-gray-700 mb-1">Numero telefonico</label>
-              <select value={numeroTelefonicoSeleccionado} onChange={(e) => setNumeroTelefonicoSeleccionado(Number(e.target.value))} className="w-full p-2 border border-gray-300 rounded">
+              <select
+                value={numeroTelefonicoSeleccionado}
+                onChange={(e) => setNumeroTelefonicoSeleccionado(Number(e.target.value))}
+                className="w-full p-2 border border-gray-300 rounded"
+              >
                 <option value={0}>0</option>
                 {numerosTelefonicosOptions}
               </select>
@@ -455,11 +514,16 @@ const Admin: React.FC = () => {
             <div className="mb-6">
               <label className="block font-medium text-gray-700 mb-1">Cantidad de números</label>
               <div className="flex items-center">
-                <select value={numeroTelefonicoSeleccionado} onChange={(e) => setNumeroTelefonicoSeleccionado(Number(e.target.value))} className="w-full p-2 border border-gray-300 rounded">
+                <select
+                  value={numeroTelefonicoSeleccionado}
+                  onChange={(e) => setNumeroTelefonicoSeleccionado(Number(e.target.value))}
+                  className="w-full p-2 border border-gray-300 rounded"
+                >
                   <option value={0}>0</option>
                   {numerosTelefonicosOptions}
                 </select>
-                <button className="px-2 py-1 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black"
+                <button
+                  className="px-2 py-1 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black"
                   onClick={handleDecrementarNumeros}
                 >
                   +
@@ -490,7 +554,13 @@ const Admin: React.FC = () => {
             {/* Usuario */}
             <div className="mb-6">
               <label className="block font-medium text-gray-700 mb-1">Usuario</label>
-              <input type="email" placeholder="Correo" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-2 border border-gray-300 rounded mb-2" />
+              <input
+                type="email"
+                placeholder="Correo"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded mb-2"
+              />
               <div className="flex gap-2">
                 <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Buscar</button>
                 <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Lista de usuarios</button>
@@ -500,7 +570,11 @@ const Admin: React.FC = () => {
             {/* Subcuenta */}
             <div className="mb-6">
               <label className="block font-medium text-gray-700 mb-1">Subcuenta</label>
-              <select value={subcuentaSeleccionada} onChange={(e) => setSubcuentaSeleccionada(Number(e.target.value))} className="w-full p-2 border border-gray-300 rounded">
+              <select
+                value={subcuentaSeleccionada}
+                onChange={(e) => setSubcuentaSeleccionada(Number(e.target.value))}
+                className="w-full p-2 border border-gray-300 rounded"
+              >
                 <option value={0}>Seleccionar compañia</option>
                 {subcuentasOptions}
               </select>
@@ -509,7 +583,11 @@ const Admin: React.FC = () => {
             {/* Credenciales */}
             <div className="mb-6">
               <label className="block font-medium text-gray-700 mb-1">Credenciales</label>
-              <select value={credencialSeleccionada} onChange={(e) => setCredencialSeleccionada(Number(e.target.value))} className="w-full p-2 border border-gray-300 rounded">
+              <select
+                value={credencialSeleccionada}
+                onChange={(e) => setCredencialSeleccionada(Number(e.target.value))}
+                className="w-full p-2 border border-gray-300 rounded"
+              >
                 <option value={0}>0</option>
                 {credencialesOptions}
               </select>
@@ -519,7 +597,11 @@ const Admin: React.FC = () => {
             <div className="mb-6">
               <label className="block font-medium text-gray-700 mb-1">Cantidad de Credenciales</label>
               <div className="flex items-center">
-                <select value={credencialSeleccionada} onChange={(e) => setCredencialSeleccionada(Number(e.target.value))} className="w-full p-2 border border-gray-300 rounded">
+                <select
+                  value={credencialSeleccionada}
+                  onChange={(e) => setCredencialSeleccionada(Number(e.target.value))}
+                  className="w-full p-2 border border-gray-300 rounded"
+                >
                   <option value={0}>0</option>
                   {credencialesOptions}
                 </select>
@@ -537,8 +619,6 @@ const Admin: React.FC = () => {
                 </button>
               </div>
             </div>
-
-
             <div className="flex justify-end">
               <button
                 className="flex items-center gap-2 px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
@@ -547,13 +627,81 @@ const Admin: React.FC = () => {
                 Asociar credenciales <FaPencilAlt />
               </button>
             </div>
-
           </div>
+        )}
+        {tabActiva === 'crear-campana' && (
+
+          <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-xl p-8">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Crear Campaña</h2>
+            <div className="mb-4">
+              <label htmlFor="nombre" className="block text-sm font-medium text-gray-700">Nombre</label>
+              <input
+                type="text"
+                id="nombre"
+                name="nombre"
+                placeholder="Nombre de la campaña"
+                value={campanaForm.nombre}
+                onChange={handleCampanaFormChange}
+                className="mt-1 block w-full rounded-md border border-gray-400 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              />
+            </div>
+            <div className="mb-4">
+              <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700">Descripción</label>
+              <textarea
+                id="descripcion"
+                name="descripcion"
+                rows={3}
+                placeholder="Descripción de la campaña"
+                value={campanaForm.descripcion}
+                onChange={handleCampanaFormChange}
+                className="mt-1 block w-full rounded-md border border-gray-400 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              />
+            </div>
+            <div className="mb-4">
+              <label htmlFor="usuario" className="block text-sm font-medium text-gray-700">Usuario</label>
+              <input
+                type="email"
+                id="usuario"
+                name="usuario"
+                placeholder="Correo del usuario"
+                value={campanaForm.usuario}
+                onChange={handleCampanaFormChange}
+                className="mt-1 block w-full rounded-md border border-gray-400 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              />
+              <div className="mt-2 flex gap-2">
+                <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Buscar</button>
+                <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Lista de usuarios</button>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label htmlFor="subcuenta" className="block text-sm font-medium text-gray-700">Subcuenta</label>
+              <select
+                id="subcuenta"
+                name="subcuenta"
+                value={campanaForm.subcuenta || ''}
+                onChange={(e) => setCampanaForm((prevForm) => ({ ...prevForm, subcuenta: Number(e.target.value) }))}
+                className="mt-1 block w-full rounded-md border border-gray-400 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              >
+                <option value="">Seleccionar subcuenta</option>
+                {subcuentasOptions}
+              </select>
+            </div>
+            <div className="flex justify-end">
+              <button
+                className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                onClick={handleCampanaFormSubmit}
+              >
+                Guardar campaña <FaPencilAlt />
+              </button>
+            </div>
+          </div>
+
         )}
       </main>
 
       <footer className="flex justify-between items-center bg-gray-900 text-white px-4 py-2">
-        <div>2026</div>
+        <div>2025</div>
         <div>AUTO INSIGHTS</div>
       </footer>
     </div>
