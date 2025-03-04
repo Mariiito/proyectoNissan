@@ -59,6 +59,16 @@ interface CampanaForm {
   subcuenta: number | null;
 }
 
+// Nueva interface para Asociar Campos
+interface AsociarCamposForm {
+  usuario: string;
+  subcuenta: number | null;
+  campana: number | null;
+  sheetId: string;
+  hoja: string;
+  rango: string;
+}
+
 const Admin: React.FC = () => {
   const navigate = useNavigate();
 
@@ -117,6 +127,16 @@ const Admin: React.FC = () => {
     subcuenta: null,
   });
 
+  // Estados para el formulario de "Asociar Campos"
+  const [asociarCamposForm, setAsociarCamposForm] = useState<AsociarCamposForm>({
+    usuario: '',
+    subcuenta: null,
+    campana: null,
+    sheetId: '',
+    hoja: '',
+    rango: '',
+  });
+
   // Refs
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Efectos
@@ -130,7 +150,6 @@ const Admin: React.FC = () => {
   const handleLogout = () => {
     navigate('/');
   };
-
   const handleCreateSubcuenta = () => {
     alert(`Creando subcuenta: ${nombreSubcuenta}`);
   };
@@ -168,33 +187,64 @@ const Admin: React.FC = () => {
     alert(`Creando campaña con nombre: ${campanaForm.nombre}, descripción: ${campanaForm.descripcion}, usuario: ${campanaForm.usuario}, subcuenta: ${campanaForm.subcuenta}`);
   };
 
+  // Handler para el formulario de "Asociar Campos"
+  const handleAsociarCamposChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setAsociarCamposForm(prevForm => ({
+      ...prevForm,
+      [name]: value,
+    }));
+  };
+
+  const handleAsociarCamposSubmit = () => {
+    // Aquí puedes hacer algo con los datos del formulario, como enviarlos a un servidor.
+    alert(`Asociando campos: ${JSON.stringify(asociarCamposForm)}`);
+  };
 
   // Options para Selects
   const subcuentasOptions = subcuentas.map(subcuenta => (
     <option
       key={subcuenta.id}
       value={subcuenta.id}
-      style={{ color: 'black' }}  // Aseguramos que el texto sea siempre negro
+      style={{ color: 'black', fontWeight: 'bold' }}
     >
       {subcuenta.nombre}
     </option>
   ));
 
   const numerosTelefonicosOptions = listaNumerosTelefonicos.map(numero => (
-    <option key={numero.id} value={numero.id}>
+    <option key={numero.id} value={numero.id} style={{ color: 'black' }}>
       {numero.numero} - {numero.nombre}
     </option>
   ));
 
   const credencialesOptions = listaCredenciales.map(credencial => (
-    <option key={credencial.id} value={credencial.id}>
+    <option key={credencial.id} value={credencial.id} style={{ color: 'black' }}>
       {credencial.nombre}
+    </option>
+  ));
+
+  // Obtenemos las opciones de campañas (necesario para el select de campañas)
+  const campanasOptions = campanas.map(campana => (
+    <option
+      key={campana.id}
+      value={campana.id}
+      style={{ color: 'black', fontWeight: 'bold' }}
+    >
+      {campana.nombre}
     </option>
   ));
 
   function handleDecrementarNumeros(): void {
     throw new Error('Function not implemented.');
   }
+
+  // Estilos personalizados para los selects
+  const selectStyle = {
+    color: 'black',
+    fontWeight: 'bold' as 'bold',
+    backgroundColor: 'white'
+  };
 
   // Renderizado
   return (
@@ -429,6 +479,40 @@ const Admin: React.FC = () => {
             </div>
           </div>
         )}
+        {tabActiva === 'credenciales-tab' && (
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="py-3 px-4 text-left font-medium text-black">ID</th>
+                  <th className="py-3 px-4 text-left font-medium text-black">NOMBRE</th>
+                  <th className="py-3 px-4 text-left font-medium text-black">JSON</th>
+                  <th className="py-3 px-4 text-left font-medium text-black">CREADO</th>
+                  <th className="py-3 px-4 text-left font-medium text-black">ACTUALIZADO</th>
+                  <th className="py-3 px-4 text-left font-medium text-black">ACCIONES</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {listaCredenciales.map(credencial => (
+                  <tr key={credencial.id} className="hover:bg-gray-50">
+                    <td className="py-3 px-4 text-black">{credencial.id}</td>
+                    <td className="py-3 px-4 text-black">{credencial.nombre}</td>
+                    <td className="py-3 px-4 text-black"><button className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Ver</button></td>
+                    <td className="py-3 px-4 text-black">{credencial.creado}</td>
+                    <td className="py-3 px-4 text-black">{credencial.actualizado}</td>
+                    <td className="py-3 px-4">
+                      <button className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Editar</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="flex justify-end mt-4 gap-2">
+              <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Anterior</button>
+              <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Siguiente</button>
+            </div>
+          </div>
+        )}
 
         {tabActiva === 'credenciales' && (<div className="max-w-3xl mx-auto">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">Crear credenciales</h2>
@@ -491,8 +575,9 @@ const Admin: React.FC = () => {
                 value={subcuentaSeleccionada}
                 onChange={(e) => setSubcuentaSeleccionada(Number(e.target.value))}
                 className="w-full p-2 border border-gray-300 rounded"
+                style={selectStyle}
               >
-                <option value={0}>Seleccionar compañia</option>
+                <option value={0} style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar compañia</option>
                 {subcuentasOptions}
               </select>
             </div>
@@ -504,8 +589,9 @@ const Admin: React.FC = () => {
                 value={numeroTelefonicoSeleccionado}
                 onChange={(e) => setNumeroTelefonicoSeleccionado(Number(e.target.value))}
                 className="w-full p-2 border border-gray-300 rounded"
+                style={selectStyle}
               >
-                <option value={0}>0</option>
+                <option value={0} style={{ color: 'black', fontWeight: 'bold' }}>0</option>
                 {numerosTelefonicosOptions}
               </select>
             </div>
@@ -518,8 +604,9 @@ const Admin: React.FC = () => {
                   value={numeroTelefonicoSeleccionado}
                   onChange={(e) => setNumeroTelefonicoSeleccionado(Number(e.target.value))}
                   className="w-full p-2 border border-gray-300 rounded"
+                  style={selectStyle}
                 >
-                  <option value={0}>0</option>
+                  <option value={0} style={{ color: 'black', fontWeight: 'bold' }}>0</option>
                   {numerosTelefonicosOptions}
                 </select>
                 <button
@@ -574,8 +661,9 @@ const Admin: React.FC = () => {
                 value={subcuentaSeleccionada}
                 onChange={(e) => setSubcuentaSeleccionada(Number(e.target.value))}
                 className="w-full p-2 border border-gray-300 rounded"
+                style={selectStyle}
               >
-                <option value={0}>Seleccionar compañia</option>
+                <option value={0} style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar compañia</option>
                 {subcuentasOptions}
               </select>
             </div>
@@ -587,8 +675,9 @@ const Admin: React.FC = () => {
                 value={credencialSeleccionada}
                 onChange={(e) => setCredencialSeleccionada(Number(e.target.value))}
                 className="w-full p-2 border border-gray-300 rounded"
+                style={selectStyle}
               >
-                <option value={0}>0</option>
+                <option value={0} style={{ color: 'black', fontWeight: 'bold' }}>0</option>
                 {credencialesOptions}
               </select>
             </div>
@@ -601,8 +690,9 @@ const Admin: React.FC = () => {
                   value={credencialSeleccionada}
                   onChange={(e) => setCredencialSeleccionada(Number(e.target.value))}
                   className="w-full p-2 border border-gray-300 rounded"
+                  style={selectStyle}
                 >
-                  <option value={0}>0</option>
+                  <option value={0} style={{ color: 'black', fontWeight: 'bold' }}>0</option>
                   {credencialesOptions}
                 </select>
                 <button
@@ -631,10 +721,10 @@ const Admin: React.FC = () => {
         )}
         {tabActiva === 'crear-campana' && (
 
-          <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-xl p-8">
+          <div className="max-w-3xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Crear Campaña</h2>
-            <div className="mb-4">
-              <label htmlFor="nombre" className="block text-sm font-medium text-gray-700">Nombre</label>
+            <div className="mb-6">
+              <label className="block font-medium text-gray-700 mb-1">Nombre</label>
               <input
                 type="text"
                 id="nombre"
@@ -642,11 +732,11 @@ const Admin: React.FC = () => {
                 placeholder="Nombre de la campaña"
                 value={campanaForm.nombre}
                 onChange={handleCampanaFormChange}
-                className="mt-1 block w-full rounded-md border border-gray-400 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                className="w-full p-2 border border-gray-300 rounded mb-2"
               />
             </div>
-            <div className="mb-4">
-              <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700">Descripción</label>
+            <div className="mb-6">
+              <label className="block font-medium text-gray-700 mb-1">Descripción</label>
               <textarea
                 id="descripcion"
                 name="descripcion"
@@ -654,11 +744,11 @@ const Admin: React.FC = () => {
                 placeholder="Descripción de la campaña"
                 value={campanaForm.descripcion}
                 onChange={handleCampanaFormChange}
-                className="mt-1 block w-full rounded-md border border-gray-400 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                className="w-full p-2 border border-gray-300 rounded mb-2"
               />
             </div>
-            <div className="mb-4">
-              <label htmlFor="usuario" className="block text-sm font-medium text-gray-700">Usuario</label>
+            <div className="mb-6">
+              <label className="block font-medium text-gray-700 mb-1">Usuario</label>
               <input
                 type="email"
                 id="usuario"
@@ -666,30 +756,31 @@ const Admin: React.FC = () => {
                 placeholder="Correo del usuario"
                 value={campanaForm.usuario}
                 onChange={handleCampanaFormChange}
-                className="mt-1 block w-full rounded-md border border-gray-400 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                className="w-full p-2 border border-gray-300 rounded mb-2"
               />
-              <div className="mt-2 flex gap-2">
+              <div className="flex gap-2">
                 <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Buscar</button>
                 <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Lista de usuarios</button>
               </div>
             </div>
 
             <div className="mb-6">
-              <label htmlFor="subcuenta" className="block text-sm font-medium text-gray-700">Subcuenta</label>
+              <label className="block font-medium text-gray-700 mb-1">Subcuenta</label>
               <select
                 id="subcuenta"
                 name="subcuenta"
                 value={campanaForm.subcuenta || ''}
                 onChange={(e) => setCampanaForm((prevForm) => ({ ...prevForm, subcuenta: Number(e.target.value) }))}
-                className="mt-1 block w-full rounded-md border border-gray-400 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                className="w-full p-2 border border-gray-300 rounded"
+                style={selectStyle}
               >
-                <option value="">Seleccionar subcuenta</option>
+                <option value="" style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar subcuenta</option>
                 {subcuentasOptions}
               </select>
             </div>
             <div className="flex justify-end">
               <button
-                className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                className="flex items-center gap-2 px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
                 onClick={handleCampanaFormSubmit}
               >
                 Guardar campaña <FaPencilAlt />
@@ -697,6 +788,97 @@ const Admin: React.FC = () => {
             </div>
           </div>
 
+        )}
+        {tabActiva === 'asociar-campos' && (
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Asociar Campos</h2>
+
+            <div className="mb-6">
+              <label className="block font-medium text-gray-700 mb-1">Usuario</label>
+              <input
+                type="email"
+                name="usuario"
+                placeholder="Correo"
+                value={asociarCamposForm.usuario}
+                onChange={handleAsociarCamposChange}
+                className="w-full p-2 border border-gray-300 rounded mb-2"
+              />
+              <div className="flex gap-2">
+                <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Buscar</button>
+                <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Lista de usuarios</button>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block font-medium text-gray-700 mb-1">Subcuenta</label>
+              <select
+                name="subcuenta"
+                value={asociarCamposForm.subcuenta || ''}
+                onChange={handleAsociarCamposChange}
+                className="w-full p-2 border border-gray-300 rounded"
+                style={selectStyle}
+              >
+                <option value="" style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar subcuenta</option>
+                {subcuentasOptions}
+              </select>
+            </div>
+
+            <div className="mb-6">
+              <label className="block font-medium text-gray-700 mb-1">Campaña</label>
+              <select
+                name="campana"
+                value={asociarCamposForm.campana || ''}
+                onChange={handleAsociarCamposChange}
+                className="w-full p-2 border border-gray-300 rounded"
+                style={selectStyle}
+              >
+                <option value="" style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar campaña</option>
+                {campanasOptions}
+              </select>
+            </div>
+
+            <div className="mb-6">
+              <label className="block font-medium text-gray-700 mb-1">Sheet ID</label>
+              <input
+                type="text"
+                name="sheetId"
+                placeholder="ID de la hoja de cálculo"
+                value={asociarCamposForm.sheetId}
+                onChange={handleAsociarCamposChange}
+                className="w-full p-2 border border-gray-300 rounded"
+              />
+            </div>
+
+            <div className="mb-6">
+              <label className="block font-medium text-gray-700 mb-1">Hoja</label>
+              <input
+                type="text"
+                name="hoja"
+                placeholder="Nombre de la hoja"
+                value={asociarCamposForm.hoja}
+                onChange={handleAsociarCamposChange}
+                className="w-full p-2 border border-gray-300 rounded"
+              />
+            </div>
+
+            <div className="mb-6">
+              <label className="block font-medium text-gray-700 mb-1">Rango</label>
+              <input
+                type="text"
+                name="rango"
+                placeholder="Rango de celdas"
+                value={asociarCamposForm.rango}
+                onChange={handleAsociarCamposChange}
+                className="w-full p-2 border border-gray-300 rounded"
+              />
+            </div>
+
+            <div className="flex justify-end">
+              <button className="flex items-center gap-2 px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]" onClick={handleAsociarCamposSubmit}>
+                Guardar Asociaciones <FaPencilAlt />
+              </button>
+            </div>
+          </div>
         )}
       </main>
 
