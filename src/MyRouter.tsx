@@ -10,10 +10,10 @@ const MyRouter = () => {
     <Routes>
       <Route path='/' element={<Layout/>}> 
         {/* <Route path="/" element={<App />} /> */}
-        <Route path="/" element={<Login />} />
-        <Route path="/home" element={<Home />} />
-        <Route path="/monitor" element={<Monitor />} />
-        <Route path="/admin" element={<Admin />} />
+        <Route path="/" element={<Login />} /> {/* te lleva a la ruta /Login */} 
+        <Route path="/home" element={<Home />} /> {/* te lleva a la ruta /Home */} 
+        <Route path="/monitor" element={<Monitor />} /> {/* te lleva a la ruta /Monitor */} 
+        <Route path="/admin" element={<Admin />} /> {/* te lleva a la ruta /Admin */} 
       </Route>
     </Routes>
   )

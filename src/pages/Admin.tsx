@@ -69,6 +69,36 @@ interface AsociarCamposForm {
   rango: string;
 }
 
+interface CampaignData {
+  ID: number;
+  Nombre: string;
+  Descripción: string;
+  Subcuenta: string;
+  CredencialTwilio: string;
+  CredencialGcp: string;
+  Plantillas: number;
+  Sheets: number;
+  Creado: string;
+  Actualizado: string;
+}
+
+interface NumberPhoneData {
+  id: number;
+  nombre: string;
+  compania: string;
+  numero: string;
+  creado: string;
+  actualizado: string;
+}
+
+interface SubcuentasData {
+  id: number;
+  Usuario: number;
+  Nombre: string;
+  Creado: string;
+  Actualizado: string;
+}
+
 const Admin: React.FC = () => {
   const navigate = useNavigate();
 
@@ -107,6 +137,7 @@ const Admin: React.FC = () => {
     { id: 1, nombre: 'Twilio-Victor', json: '{\n  "key": "value"\n}', creado: '20/2/2025, 17:38:18', actualizado: '21/2/2025, 10:08:57' },
     { id: 2, nombre: 'Huerpi', json: '{\n  "key": "value"\n}', creado: '20/2/2025, 17:26:57', actualizado: '20/2/2025, 17:26:57' },
   ]);
+
   const [tabActiva, setTabActiva] = useState('usuarios');
   const [nombreSubcuenta, setNombreSubcuenta] = useState('');
   const [email, setEmail] = useState('');
@@ -137,15 +168,71 @@ const Admin: React.FC = () => {
     rango: '',
   });
 
+  const [campaignsData, setCampaignsData] = useState<CampaignData[]>([]);
+
+  const [numberPhonesData, setNumberPhonesData] = useState<NumberPhoneData[]>([]);
+
+  const [subcuentasData, setSubcuentasData] = useState<SubcuentasData[]>([]);
+
   // Refs
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
   // Efectos
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.value = '{\n  "key": "value"\n}';
     }
   }, [tabActiva]);
+  // Función para obtener las campañas desde el backend
+  const fetchCampaigns = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/campaigns');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setCampaignsData(data);
+    } catch (error) {
+      console.error("Could not fetch campaigns:", error);
+    }
+  };
 
+  useEffect(() => {
+    const fetchSubcuentas = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/sub_accounts'); // Ajusta la URL si es necesario
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setSubcuentasData(data);
+      } catch (error) {
+        console.error("Could not fetch subcuentas:", error);
+      }
+    };
+
+    if (tabActiva === 'subcuentas-tab') {
+      fetchSubcuentas();
+    }
+  }, [tabActiva]);
+  useEffect(() => {
+    const fetchNumberPhones = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/number_phones');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setNumberPhonesData(data);
+      } catch (error) {
+        console.error("Could not fetch number phones:", error);
+      }
+    };
+
+    if (tabActiva === 'numeros-tab') {
+      fetchNumberPhones();
+    }
+  }, [tabActiva]);
   // Handlers
   const handleLogout = () => {
     navigate('/');
@@ -195,7 +282,6 @@ const Admin: React.FC = () => {
       [name]: value,
     }));
   };
-
   const handleAsociarCamposSubmit = () => {
     // Aquí puedes hacer algo con los datos del formulario, como enviarlos a un servidor.
     alert(`Asociando campos: ${JSON.stringify(asociarCamposForm)}`);
@@ -211,7 +297,6 @@ const Admin: React.FC = () => {
       {subcuenta.nombre}
     </option>
   ));
-
   const numerosTelefonicosOptions = listaNumerosTelefonicos.map(numero => (
     <option key={numero.id} value={numero.id} style={{ color: 'black' }}>
       {numero.numero} - {numero.nombre}
@@ -246,6 +331,11 @@ const Admin: React.FC = () => {
     backgroundColor: 'white'
   };
 
+  const formatDate = (inputDate: string): string => {
+    const [datePart, timePart] = inputDate.split('/');
+    return `${datePart}, ${timePart}`;
+  };
+
   // Renderizado
   return (
     <div className="flex flex-col h-screen bg-gray-100">
@@ -270,9 +360,8 @@ const Admin: React.FC = () => {
         <button className={`px-4 py-2 whitespace-nowrap ${tabActiva === 'subcuentas-tab' ? 'bg-[#673ab7]' : 'hover:bg-gray-700'}`} onClick={() => setTabActiva('subcuentas-tab')}>Subcuentas</button>
         <button className={`px-4 py-2 whitespace-nowrap ${tabActiva === 'numeros-tab' ? 'bg-[#673ab7]' : 'hover:bg-gray-700'}`} onClick={() => setTabActiva('numeros-tab')}>Números telefónicos</button>
         <button className={`px-4 py-2 whitespace-nowrap ${tabActiva === 'credenciales-tab' ? 'bg-[#673ab7]' : 'hover:bg-gray-700'}`} onClick={() => setTabActiva('credenciales-tab')}>Credenciales</button>
-        <button className={`px-4 py-2 whitespace-nowrap ${tabActiva === 'campanas' ? 'bg-[#673ab7]' : 'hover:bg-gray-700'}`} onClick={() => setTabActiva('campanas')}>Campañas</button>
+        <button className={`px-4 py-2 whitespace-nowrap ${tabActiva === 'campanas' ? 'bg-[#673ab7]' : 'hover:bg-gray-700'}`} onClick={() => { setTabActiva('campanas'); fetchCampaigns(); }}>Campañas</button>
       </nav>
-
       {/* Contenido principal */}
       <main className="flex-1 p-6 overflow-auto">
         {tabActiva === 'subcuentas' && (
@@ -324,7 +413,7 @@ const Admin: React.FC = () => {
                     </td>
                     <td className="py-3 px-4 text-black">{usuario.nombre}</td>
                     <td className="py-3 px-4 text-black">{usuario.admin ? 'SI' : 'NO'}</td>
-                    <td className="py-3 px-4 text-black">{usuario.creacion}</td>
+                    <td className="py-3 px-4 text-black">{formatDate(usuario.creacion)}</td>
                     <td className="py-3 px-4 text-black">{usuario.activo ? 'SI' : 'NO'}</td>
                     <td className="py-3 px-4 text-black">{usuario.ultimoLogin}</td>
                     <td className="py-3 px-4">
@@ -346,21 +435,21 @@ const Admin: React.FC = () => {
               <thead className="bg-gray-100">
                 <tr>
                   <th className="py-3 px-4 text-left font-medium text-black">ID</th>
-                  <th className="py-3 px-4 text-left font-medium text-black">USUARIO</th>
-                  <th className="py-3 px-4 text-left font-medium text-black">NOMBRE</th>
-                  <th className="py-3 px-4 text-left font-medium text-black">CREADO</th>
-                  <th className="py-3 px-4 text-left font-medium text-black">ACTUALIZADO</th>
-                  <th className="py-3 px-4 text-left font-medium text-black">ACCIONES</th>
+                  <th className="py-3 px-4 text-left font-medium text-black">Usuario</th>
+                  <th className="py-3 px-4 text-left font-medium text-black">Nombre</th>
+                  <th className="py-3 px-4 text-left font-medium text-black">Creado</th>
+                  <th className="py-3 px-4 text-left font-medium text-black">Actualizado</th>
+                  <th className="py-3 px-4 text-left font-medium text-black">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {subcuentas.map(subcuenta => (
+                {subcuentasData.map(subcuenta => (
                   <tr key={subcuenta.id} className="hover:bg-gray-50">
                     <td className="py-3 px-4 text-black">{subcuenta.id}</td>
-                    <td className="py-3 px-4 text-black">{subcuenta.usuario}</td>
-                    <td className="py-3 px-4 text-black">{subcuenta.nombre}</td>
-                    <td className="py-3 px-4 text-black">{subcuenta.creado}</td>
-                    <td className="py-3 px-4 text-black">{subcuenta.actualizado}</td>
+                    <td className="py-3 px-4 text-black">{subcuenta.Usuario}</td>
+                    <td className="py-3 px-4 text-black">{subcuenta.Nombre}</td>
+                    <td className="py-3 px-4 text-black">{subcuenta.Creado}</td>
+                    <td className="py-3 px-4 text-black">{subcuenta.Actualizado}</td>
                     <td className="py-3 px-4">
                       <button className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Editar</button>
                     </td>
@@ -374,7 +463,6 @@ const Admin: React.FC = () => {
             </div>
           </div>
         )}
-
         {tabActiva === 'campanas' && (
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white">
@@ -394,18 +482,18 @@ const Admin: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {campanas.map(campana => (
-                  <tr key={campana.id} className="hover:bg-gray-50">
-                    <td className="py-3 px-4 text-black">{campana.id}</td>
-                    <td className="py-3 px-4 text-black">{campana.nombre}</td>
-                    <td className="py-3 px-4 text-black">{campana.descripcion}</td>
-                    <td className="py-3 px-4 text-black">{campana.subcuenta}</td>
-                    <td className="py-3 px-4 text-black">{campana.credencialTwilio}</td>
-                    <td className="py-3 px-4 text-black">{campana.credencialGcp}</td>
-                    <td className="py-3 px-4 text-black">{campana.plantillas}</td>
-                    <td className="py-3 px-4 text-black">{campana.sheets}</td>
-                    <td className="py-3 px-4 text-black">{campana.creado}</td>
-                    <td className="py-3 px-4 text-black">{campana.actualizado}</td>
+                {campaignsData.map(campana => (
+                  <tr key={campana.ID} className="hover:bg-gray-50">
+                    <td className="py-3 px-4 text-black">{campana.ID}</td>
+                    <td className="py-3 px-4 text-black">{campana.Nombre}</td>
+                    <td className="py-3 px-4 text-black">{campana.Descripción}</td>
+                    <td className="py-3 px-4 text-black">{campana.Subcuenta}</td>
+                    <td className="py-3 px-4 text-black">{campana.CredencialTwilio}</td>
+                    <td className="py-3 px-4 text-black">{campana.CredencialGcp}</td>
+                    <td className="py-3 px-4 text-black">{campana.Plantillas}</td>
+                    <td className="py-3 px-4 text-black">{campana.Sheets}</td>
+                    <td className="py-3 px-4 text-black">{campana.Creado}</td>
+                    <td className="py-3 px-4 text-black">{campana.Actualizado}</td>
                     <td className="py-3 px-4">
                       <button className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Editar</button>
                     </td>
@@ -419,7 +507,6 @@ const Admin: React.FC = () => {
             </div>
           </div>
         )}
-
         {tabActiva === 'numeros' && (<div className="max-w-3xl mx-auto">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">Crear números telefónicos</h2>
           <div className="mb-6">
@@ -458,7 +545,7 @@ const Admin: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {listaNumerosTelefonicos.map(numero => (
+                {numberPhonesData.map(numero => (
                   <tr key={numero.id} className="hover:bg-gray-50">
                     <td className="py-3 px-4 text-black">{numero.id}</td>
                     <td className="py-3 px-4 text-black">{numero.nombre}</td>
@@ -498,8 +585,8 @@ const Admin: React.FC = () => {
                     <td className="py-3 px-4 text-black">{credencial.id}</td>
                     <td className="py-3 px-4 text-black">{credencial.nombre}</td>
                     <td className="py-3 px-4 text-black"><button className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Ver</button></td>
-                    <td className="py-3 px-4 text-black">{credencial.creado}</td>
-                    <td className="py-3 px-4 text-black">{credencial.actualizado}</td>
+                    <td className="py-3 px-4 text-black">{formatDate(credencial.creado)}</td>
+                    <td className="py-3 px-4 text-black">{formatDate(credencial.actualizado)}</td>
                     <td className="py-3 px-4">
                       <button className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Editar</button>
                     </td>
@@ -513,7 +600,6 @@ const Admin: React.FC = () => {
             </div>
           </div>
         )}
-
         {tabActiva === 'credenciales' && (<div className="max-w-3xl mx-auto">
           <h2 className="text-2xl font-bold text-gray-800 mb-6">Crear credenciales</h2>
           <div className="mb-6">
@@ -595,7 +681,6 @@ const Admin: React.FC = () => {
                 {numerosTelefonicosOptions}
               </select>
             </div>
-
             {/* Cantidad de números */}
             <div className="mb-6">
               <label className="block font-medium text-gray-700 mb-1">Cantidad de números</label>
@@ -667,7 +752,6 @@ const Admin: React.FC = () => {
                 {subcuentasOptions}
               </select>
             </div>
-
             {/* Credenciales */}
             <div className="mb-6">
               <label className="block font-medium text-gray-700 mb-1">Credenciales</label>
@@ -759,11 +843,11 @@ const Admin: React.FC = () => {
                 className="w-full p-2 border border-gray-300 rounded mb-2"
               />
               <div className="flex gap-2">
-                <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Buscar</button>
+                <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">
+                  Buscar</button>
                 <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Lista de usuarios</button>
               </div>
             </div>
-
             <div className="mb-6">
               <label className="block font-medium text-gray-700 mb-1">Subcuenta</label>
               <select
@@ -881,7 +965,6 @@ const Admin: React.FC = () => {
           </div>
         )}
       </main>
-
       <footer className="flex justify-between items-center bg-gray-900 text-white px-4 py-2">
         <div>2025</div>
         <div>AUTO INSIGHTS</div>
