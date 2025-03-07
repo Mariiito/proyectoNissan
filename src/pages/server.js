@@ -2,16 +2,21 @@ import express from 'express';
 import mysql from 'mysql2';
 import cors from 'cors';
 import { pbkdf2Sync, randomBytes } from 'crypto';
+import cookieParser from 'cookie-parser'; // Importa cookie-parser
+import jwt from 'jsonwebtoken'; // Importa jsonwebtoken
 
 const app = express();
 const port = 3001;
+const secretKey = 'tu_secreto'; // Cambia esto por una clave secreta segura
 
 const corsOptions = {
-  origin: 'http://localhost:5173'
+  origin: 'http://localhost:5173',
+  credentials: true // Permite el envío de cookies
 };
 
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use(cookieParser()); // Usa cookie-parser middleware
 
 const db = mysql.createConnection({
   host: 'localhost',
@@ -55,6 +60,11 @@ app.post('/login', async (req, res) => {
       const isMatch = verifyPassword(password, user.password);
 
       if (isMatch) {
+        // Generar un token JWT
+        const token = jwt.sign({ email: user.email }, secretKey, { expiresIn: '1h' });
+
+        // Enviar el token como una cookie
+        res.cookie('token', token, { httpOnly: true, secure: false, sameSite: 'Strict' }); // Ajusta secure y sameSite según tu entorno
         return res.status(200).json({ message: 'Inicio de sesión exitoso' });
       } else {
         return res.status(401).json({ message: 'Correo electrónico o contraseña incorrectos.' });
@@ -62,6 +72,25 @@ app.post('/login', async (req, res) => {
     } else {
       return res.status(401).json({ message: 'Correo electrónico o contraseña incorrectos.' });
     }
+  });
+});
+
+// Endpoint para obtener el email del usuario autenticado
+app.get('/user-email', (req, res) => {
+  const token = req.cookies.token;
+
+  if (!token) {
+    return res.status(401).json({ message: 'No se proporcionó token.' });
+  }
+
+  jwt.verify(token, secretKey, (err, decoded) => {
+    if (err) {
+      return res.status(401).json({ message: 'Token inválido.' });
+    }
+
+    // El token es válido, extraer el email del payload
+    const email = decoded.email;
+    return res.status(200).json({ email });
   });
 });
 
@@ -137,5 +166,47 @@ app.get('/sub_accounts', async (req, res) => {
   } catch (err) {
     console.error('Error al ejecutar la consulta:', err);
     res.status(500).json({ message: 'Error al obtener las subcuentas.' });
+  }
+});
+
+app.get('/users', async (req, res) => {
+  try {
+    const [results, fields] = await db.promise().query(`
+      SELECT 
+        id,
+        username,
+        email,
+        first_name,
+        last_name,
+        is_superuser,
+        is_active,
+        DATE_FORMAT(date_joined, '%d/%m/%Y, %H:%i:%s') AS date_joined,
+        last_login
+      FROM users;
+    `);
+
+    res.status(200).json(results);
+  } catch (err) {
+    console.error('Error al ejecutar la consulta:', err);
+    res.status(500).json({ message: 'Error al obtener los usuarios.' });
+  }
+});
+
+app.get('/credentials', async (req, res) => {
+  try {
+    const [results, fields] = await db.promise().query(`
+      SELECT
+        id,
+        name,
+        json,
+        DATE_FORMAT(created_at, '%d/%m/%Y, %H:%i:%s') AS created_at,
+        DATE_FORMAT(updated_at, '%d/%m/%Y, %H:%i:%s') AS updated_at
+      FROM credentials;
+    `);
+
+    res.status(200).json(results);
+  } catch (err) {
+    console.error('Error al ejecutar la consulta:', err);
+    res.status(500).json({ message: 'Error al obtener las credenciales.' });
   }
 });

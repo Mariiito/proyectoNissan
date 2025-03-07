@@ -5,13 +5,14 @@ import { useNavigate } from 'react-router-dom';
 // Interfaces
 interface Usuario {
   id: number;
-  usuario: string;
+  username: string;
   email: string;
-  nombre: string;
-  admin: boolean;
-  activo: boolean;
-  creacion: string;
-  ultimoLogin: string;
+  first_name: string;
+  last_name: string;
+  is_superuser: boolean;
+  is_active: boolean;
+  date_joined: string;
+  last_login: string | null;
 }
 
 interface Subcuenta {
@@ -46,10 +47,10 @@ interface NumeroTelefonico {
 
 interface Credencial {
   id: number;
-  nombre: string;
-  json: string; // Asumo que la credencial se guarda como JSON string
-  creado: string;
-  actualizado: string;
+  name: string;
+  json: string;
+  created_at: string;
+  updated_at: string;
 }
 
 interface CampanaForm {
@@ -103,14 +104,6 @@ const Admin: React.FC = () => {
   const navigate = useNavigate();
 
   // Estados
-  const [usuarios] = useState<Usuario[]>([
-    { id: 1, usuario: 'admin', email: 'admin@grupoautoauto.com.mx', nombre: 'Admin Admin', admin: true, activo: true, creacion: '11/27/2023, 10:24:17', ultimoLogin: 'N/A' },
-    { id: 2, usuario: 'hector_miguel', email: 'hector.m@grupoautoauto.com.mx', nombre: 'Hector Miguel Castro Arredondo', admin: false, activo: true, creacion: '11/27/2023, 10:37:55', ultimoLogin: '13/2/2023, 16:55:31' },
-    { id: 3, usuario: 'Gerente BDC Posventa Grupo Huerpi', email: 'gerente.bdc.posventa@huerpi.mx', nombre: 'Carlos Vazquez', admin: false, activo: true, creacion: '11/27/2023, 3:37:55', ultimoLogin: 'N/A' },
-    { id: 4, usuario: 'Gerente bdc', email: 'huerpi@automagtx.mx', nombre: 'Carlos Vazquez', admin: false, activo: true, creacion: '10/27/2023, 20:37:55', ultimoLogin: 'N/A' },
-    { id: 5, usuario: 'Angel', email: 'miguel.b@grupoautoauto.com.mx', nombre: 'Angel Ramos', admin: false, activo: true, creacion: '10/27/2023, 20:37:55', ultimoLogin: 'N/A' },
-    { id: 6, usuario: 'gsme-masivos', email: 'gsme.mx@digitaltolk.mx', nombre: 'Karla Rivera', admin: false, activo: true, creacion: '27/2/2023, 3:31:00', ultimoLogin: 'N/A' }
-  ]);
   const [subcuentas] = useState<Subcuenta[]>([
     { id: 10, usuario: 1, nombre: 'Subcuenta Principal', creado: '11/2/2025, 10:31:31', actualizado: '11/2/2025, 10:31:31' },
     { id: 11, usuario: 3, nombre: 'PruebaHuerpi', creado: '21/2/2025, 10:57:28', actualizado: '21/2/2025, 10:57:28' },
@@ -134,8 +127,8 @@ const Admin: React.FC = () => {
     { id: 1, nombre: 'Prueba Campaña', descripcion: '-', subcuenta: 1, credencialTwilio: 2, credencialGcp: 1, plantillas: 2, sheets: 1, creado: '11/2/2025, 10:33:44', actualizado: '27/2/2025, 18:04:05' }
   ]);
   const [listaCredenciales] = useState<Credencial[]>([
-    { id: 1, nombre: 'Twilio-Victor', json: '{\n  "key": "value"\n}', creado: '20/2/2025, 17:38:18', actualizado: '21/2/2025, 10:08:57' },
-    { id: 2, nombre: 'Huerpi', json: '{\n  "key": "value"\n}', creado: '20/2/2025, 17:26:57', actualizado: '20/2/2025, 17:26:57' },
+    { id: 1, name: 'Twilio-Victor', json: '{\n  "key": "value"\n}', created_at: '20/2/2025, 17:38:18', updated_at: '21/2/2025, 10:08:57' },
+    { id: 2, name: 'Huerpi', json: '{\n  "key": "value"\n}', created_at: '20/2/2025, 17:26:57', updated_at: '20/2/2025, 17:26:57' },
   ]);
 
   const [tabActiva, setTabActiva] = useState('usuarios');
@@ -145,6 +138,9 @@ const Admin: React.FC = () => {
   const [jsonCredencial, setJsonCredencial] = useState('{\n  "key": "value"\n}');
   const [numeroTelefonicoSeleccionado, setNumeroTelefonicoSeleccionado] = useState<number>(0);
   const [subcuentaSeleccionada, setSubcuentaSeleccionada] = useState<number>(0);
+
+  // Nuevo estado para el email del usuario
+  const [userEmail, setUserEmail] = useState<string>('');
 
   //Nuevo Estado Asociar credenciales
   const [credencialSeleccionada, setCredencialSeleccionada] = useState<number>(0);
@@ -173,16 +169,39 @@ const Admin: React.FC = () => {
   const [numberPhonesData, setNumberPhonesData] = useState<NumberPhoneData[]>([]);
 
   const [subcuentasData, setSubcuentasData] = useState<SubcuentasData[]>([]);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [credentials, setCredentials] = useState<Credencial[]>([]);
 
   // Refs
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
   // Efectos
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.value = '{\n  "key": "value"\n}';
     }
   }, [tabActiva]);
+
+  // Efecto para obtener el email del usuario al montar el componente
+  useEffect(() => {
+    const fetchUserEmail = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/user-email');
+        console.log("Respuesta del backend:", response); // Agrega este console.log
+        if (response.ok) {
+          const data = await response.json();
+          console.log("Datos del backend:", data); // Agrega este console.log
+          setUserEmail(data.email);
+        } else {
+          console.error('Error al obtener el email del usuario:', response.status);
+        }
+      } catch (error) {
+        console.error('Error al obtener el email del usuario:', error);
+      }
+    };
+
+    fetchUserEmail();
+  }, []);
+
   // Función para obtener las campañas desde el backend
   const fetchCampaigns = async () => {
     try {
@@ -196,8 +215,7 @@ const Admin: React.FC = () => {
       console.error("Could not fetch campaigns:", error);
     }
   };
-
-  useEffect(() => {
+useEffect(() => {
     const fetchSubcuentas = async () => {
       try {
         const response = await fetch('http://localhost:3001/sub_accounts'); // Ajusta la URL si es necesario
@@ -233,12 +251,58 @@ const Admin: React.FC = () => {
       fetchNumberPhones();
     }
   }, [tabActiva]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/users');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setUsuarios(data);
+      } catch (error) {
+        console.error("Could not fetch users:", error);
+      }
+    };
+
+    if (tabActiva === 'usuarios') {
+      fetchUsers();
+    }
+  }, [tabActiva]);
+
+  useEffect(() => {
+    const fetchCredentials = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/credentials');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setCredentials(data);
+      } catch (error) {
+        console.error("Could not fetch credentials:", error);
+      }
+    };
+
+    if (tabActiva === 'credenciales-tab') {
+      fetchCredentials();
+    }
+  }, [tabActiva]);
   // Handlers
   const handleLogout = () => {
     navigate('/');
   };
+  // Función para el botón "Buscar"
+  const handleBuscarUsuario = () => {
+    console.log("handleBuscarUsuario ejecutado"); // Agrega este console.log
+    console.log('userEmail:', userEmail); // Agrega este console.log
+    setEmail(userEmail);
+    console.log('email:', email); // Agrega este console.log
+  };
+
   const handleCreateSubcuenta = () => {
-    alert(`Creando subcuenta: ${nombreSubcuenta}`);
+    alert(`Creando subcuenta: ${nombreSubcuenta} para el usuario: ${email}`);
   };
 
   const handleCrearCredencial = () => {
@@ -251,13 +315,12 @@ const Admin: React.FC = () => {
   const handleAsociarCredenciales = () => {
     alert(`Asociando la credencial ${credencialSeleccionada} a la subcuenta ${subcuentaSeleccionada}`);
   };
-
-  const handleIncrementarCredenciales = () => {
-    setCantidadCredenciales(CantidadCredenciales + 1);
+const handleDecrementarCredenciales = () => {
+    setCantidadCredenciales(CantidadCredenciales > 0 ? CantidadCredenciales - 1 : 0);
   };
 
-  const handleDecrementarCredenciales = () => {
-    setCantidadCredenciales(CantidadCredenciales > 0 ? CantidadCredenciales - 1 : 0);
+const handleIncrementarCredenciales = () => {
+    setCantidadCredenciales(CantidadCredenciales + 1);
   };
 
   // Handler para el formulario de campaña
@@ -305,7 +368,7 @@ const Admin: React.FC = () => {
 
   const credencialesOptions = listaCredenciales.map(credencial => (
     <option key={credencial.id} value={credencial.id} style={{ color: 'black' }}>
-      {credencial.nombre}
+      {credencial.name}
     </option>
   ));
 
@@ -330,12 +393,6 @@ const Admin: React.FC = () => {
     fontWeight: 'bold' as 'bold',
     backgroundColor: 'white'
   };
-
-  const formatDate = (inputDate: string): string => {
-    const [datePart, timePart] = inputDate.split('/');
-    return `${datePart}, ${timePart}`;
-  };
-
   // Renderizado
   return (
     <div className="flex flex-col h-screen bg-gray-100">
@@ -371,7 +428,7 @@ const Admin: React.FC = () => {
               <label className="block font-medium text-gray-700 mb-1">Usuario</label>
               <input type="email" placeholder="Correo" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-2 border border-gray-300 rounded mb-2" />
               <div className="flex gap-2">
-                <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Buscar</button>
+                <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black" onClick={handleBuscarUsuario}>Buscar</button>
                 <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Lista de usuarios</button>
               </div>
             </div>
@@ -387,18 +444,18 @@ const Admin: React.FC = () => {
             </div>
           </div>
         )}
-
-        {tabActiva === 'usuarios' && (
+  {tabActiva === 'usuarios' && (
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white">
               <thead className="bg-gray-100">
                 <tr>
                   <th className="py-3 px-4 text-left font-medium text-black">ID</th>
                   <th className="py-3 px-4 text-left font-medium text-black">USUARIO</th>
+                  <th className="py-3 px-4 text-left font-medium text-black">EMAIL</th>
                   <th className="py-3 px-4 text-left font-medium text-black">NOMBRE</th>
                   <th className="py-3 px-4 text-left font-medium text-black">ADMIN</th>
-                  <th className="py-3 px-4 text-left font-medium text-black">CREACIÓN</th>
                   <th className="py-3 px-4 text-left font-medium text-black">ACTIVO</th>
+                  <th className="py-3 px-4 text-left font-medium text-black">CREACIÓN</th>
                   <th className="py-3 px-4 text-left font-medium text-black">ÚLTIMO LOGIN</th>
                   <th className="py-3 px-4 text-left font-medium text-black">ACCIONES</th>
                 </tr>
@@ -407,15 +464,15 @@ const Admin: React.FC = () => {
                 {usuarios.map(usuario => (
                   <tr key={usuario.id} className="hover:bg-gray-50">
                     <td className="py-3 px-4 text-black">{usuario.id}</td>
+                    <td className="py-3 px-4 text-black">{usuario.username}</td>
                     <td className="py-3 px-4">
-                      <div className="text-black">{usuario.usuario}</div>
-                      <div className="text-xs text-gray-500">{usuario.email}</div>
+                      <div className="text-black">{usuario.email}</div>
                     </td>
-                    <td className="py-3 px-4 text-black">{usuario.nombre}</td>
-                    <td className="py-3 px-4 text-black">{usuario.admin ? 'SI' : 'NO'}</td>
-                    <td className="py-3 px-4 text-black">{formatDate(usuario.creacion)}</td>
-                    <td className="py-3 px-4 text-black">{usuario.activo ? 'SI' : 'NO'}</td>
-                    <td className="py-3 px-4 text-black">{usuario.ultimoLogin}</td>
+                    <td className="py-3 px-4 text-black">{usuario.first_name} {usuario.last_name}</td>
+                    <td className="py-3 px-4 text-black">{usuario.is_superuser ? 'SI' : 'NO'}</td>
+                    <td className="py-3 px-4 text-black">{usuario.is_active ? 'SI' : 'NO'}</td>
+                    <td className="py-3 px-4 text-black">{usuario.date_joined}</td>
+                    <td className="py-3 px-4 text-black">{usuario.last_login}</td>
                     <td className="py-3 px-4">
                       <button className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Editar</button>
                     </td>
@@ -463,7 +520,7 @@ const Admin: React.FC = () => {
             </div>
           </div>
         )}
-        {tabActiva === 'campanas' && (
+ {tabActiva === 'campanas' && (
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white">
               <thead className="bg-gray-100">
@@ -529,8 +586,7 @@ const Admin: React.FC = () => {
           </div>
         </div>
         )}
-
-        {tabActiva === 'numeros-tab' && (
+ {tabActiva === 'numeros-tab' && (
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white">
               <thead className="bg-gray-100">
@@ -580,13 +636,13 @@ const Admin: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {listaCredenciales.map(credencial => (
+                {credentials.map(credencial => (
                   <tr key={credencial.id} className="hover:bg-gray-50">
                     <td className="py-3 px-4 text-black">{credencial.id}</td>
-                    <td className="py-3 px-4 text-black">{credencial.nombre}</td>
+                    <td className="py-3 px-4 text-black">{credencial.name}</td>
                     <td className="py-3 px-4 text-black"><button className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Ver</button></td>
-                    <td className="py-3 px-4 text-black">{formatDate(credencial.creado)}</td>
-                    <td className="py-3 px-4 text-black">{formatDate(credencial.actualizado)}</td>
+                    <td className="py-3 px-4 text-black">{credencial.created_at}</td>
+                    <td className="py-3 px-4 text-black">{credencial.updated_at}</td>
                     <td className="py-3 px-4">
                       <button className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Editar</button>
                     </td>
@@ -633,8 +689,7 @@ const Admin: React.FC = () => {
           </div>
         </div>
         )}
-
-        {tabActiva === 'asociar-numeros' && (
+ {tabActiva === 'asociar-numeros' && (
           <div className="max-w-3xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Asociar números telefónicos</h2>
 
@@ -670,7 +725,7 @@ const Admin: React.FC = () => {
 
             {/* Numero Telefonico */}
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Numero telefonico</label>
+              <label  className="block font-medium text-gray-700 mb-1">Numero telefonico</label>
               <select
                 value={numeroTelefonicoSeleccionado}
                 onChange={(e) => setNumeroTelefonicoSeleccionado(Number(e.target.value))}
@@ -683,7 +738,7 @@ const Admin: React.FC = () => {
             </div>
             {/* Cantidad de números */}
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Cantidad de números</label>
+              <label  className="block font-medium text-gray-700 mb-1">Cantidad de números</label>
               <div className="flex items-center">
                 <select
                   value={numeroTelefonicoSeleccionado}
@@ -725,7 +780,7 @@ const Admin: React.FC = () => {
 
             {/* Usuario */}
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Usuario</label>
+              <label  className="block font-medium text-gray-700 mb-1">Usuario</label>
               <input
                 type="email"
                 placeholder="Correo"
@@ -741,7 +796,7 @@ const Admin: React.FC = () => {
 
             {/* Subcuenta */}
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Subcuenta</label>
+              <label  className="block font-medium text-gray-700 mb-1">Subcuenta</label>
               <select
                 value={subcuentaSeleccionada}
                 onChange={(e) => setSubcuentaSeleccionada(Number(e.target.value))}
@@ -754,7 +809,7 @@ const Admin: React.FC = () => {
             </div>
             {/* Credenciales */}
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Credenciales</label>
+              <label  className="block font-medium text-gray-700 mb-1">Credenciales</label>
               <select
                 value={credencialSeleccionada}
                 onChange={(e) => setCredencialSeleccionada(Number(e.target.value))}
@@ -768,7 +823,7 @@ const Admin: React.FC = () => {
 
             {/* Cantidad de Credenciales */}
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Cantidad de Credenciales</label>
+              <label  className="block font-medium text-gray-700 mb-1">Cantidad de Credenciales</label>
               <div className="flex items-center">
                 <select
                   value={credencialSeleccionada}
@@ -808,7 +863,7 @@ const Admin: React.FC = () => {
           <div className="max-w-3xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Crear Campaña</h2>
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Nombre</label>
+              <label  className="block font-medium text-gray-700 mb-1">Nombre</label>
               <input
                 type="text"
                 id="nombre"
@@ -820,7 +875,7 @@ const Admin: React.FC = () => {
               />
             </div>
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Descripción</label>
+              <label  className="block font-medium text-gray-700 mb-1">Descripción</label>
               <textarea
                 id="descripcion"
                 name="descripcion"
@@ -832,7 +887,7 @@ const Admin: React.FC = () => {
               />
             </div>
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Usuario</label>
+              <label  className="block font-medium text-gray-700 mb-1">Usuario</label>
               <input
                 type="email"
                 id="usuario"
@@ -849,7 +904,7 @@ const Admin: React.FC = () => {
               </div>
             </div>
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Subcuenta</label>
+              <label  className="block font-medium text-gray-700 mb-1">Subcuenta</label>
               <select
                 id="subcuenta"
                 name="subcuenta"
@@ -878,7 +933,7 @@ const Admin: React.FC = () => {
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Asociar Campos</h2>
 
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Usuario</label>
+              <label  className="block font-medium text-gray-700 mb-1">Usuario</label>
               <input
                 type="email"
                 name="usuario"
@@ -894,7 +949,7 @@ const Admin: React.FC = () => {
             </div>
 
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Subcuenta</label>
+              <label  className="block font-medium text-gray-700 mb-1">Subcuenta</label>
               <select
                 name="subcuenta"
                 value={asociarCamposForm.subcuenta || ''}
@@ -908,7 +963,7 @@ const Admin: React.FC = () => {
             </div>
 
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Campaña</label>
+              <label  className="block font-medium text-gray-700 mb-1">Campaña</label>
               <select
                 name="campana"
                 value={asociarCamposForm.campana || ''}
@@ -922,7 +977,7 @@ const Admin: React.FC = () => {
             </div>
 
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Sheet ID</label>
+              <label  className="block font-medium text-gray-700 mb-1">Sheet ID</label>
               <input
                 type="text"
                 name="sheetId"
@@ -934,7 +989,7 @@ const Admin: React.FC = () => {
             </div>
 
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Hoja</label>
+              <label  className="block font-medium text-gray-700 mb-1">Hoja</label>
               <input
                 type="text"
                 name="hoja"
@@ -946,7 +1001,7 @@ const Admin: React.FC = () => {
             </div>
 
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Rango</label>
+              <label  className="block font-medium text-gray-700 mb-1">Rango</label>
               <input
                 type="text"
                 name="rango"
