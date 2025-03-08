@@ -270,7 +270,6 @@ useEffect(() => {
       fetchUsers();
     }
   }, [tabActiva]);
-
   useEffect(() => {
     const fetchCredentials = async () => {
       try {
@@ -301,8 +300,30 @@ useEffect(() => {
     console.log('email:', email); // Agrega este console.log
   };
 
-  const handleCreateSubcuenta = () => {
-    alert(`Creando subcuenta: ${nombreSubcuenta} para el usuario: ${email}`);
+  const handleCreateSubcuenta = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/sub_accounts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, nombreSubcuenta }),
+      });
+
+      if (response.ok) {
+        alert(`Subcuenta creada exitosamente para el usuario: ${email}`);
+        // Limpiar los campos después de la creación exitosa
+        setEmail('');
+        setNombreSubcuenta('');
+      } else {
+        const errorData = await response.json();
+        console.error('Error al crear la subcuenta:', errorData);
+        alert(`Error al crear la subcuenta: ${errorData.message || 'Error desconocido'}`);
+      }
+    } catch (error) {
+      console.error('Error al conectar con el servidor:', error);
+      alert('Error al conectar con el servidor.');
+    }
   };
 
   const handleCrearCredencial = () => {
@@ -315,11 +336,11 @@ useEffect(() => {
   const handleAsociarCredenciales = () => {
     alert(`Asociando la credencial ${credencialSeleccionada} a la subcuenta ${subcuentaSeleccionada}`);
   };
-const handleDecrementarCredenciales = () => {
+  const handleDecrementarCredenciales = () => {
     setCantidadCredenciales(CantidadCredenciales > 0 ? CantidadCredenciales - 1 : 0);
   };
 
-const handleIncrementarCredenciales = () => {
+  const handleIncrementarCredenciales = () => {
     setCantidadCredenciales(CantidadCredenciales + 1);
   };
 
@@ -426,7 +447,13 @@ const handleIncrementarCredenciales = () => {
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Crear subcuenta</h2>
             <div className="mb-6">
               <label className="block font-medium text-gray-700 mb-1">Usuario</label>
-              <input type="email" placeholder="Correo" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-2 border border-gray-300 rounded mb-2" />
+              <input
+                type="email"
+                placeholder="Correo"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded mb-2 text-black"
+              />
               <div className="flex gap-2">
                 <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black" onClick={handleBuscarUsuario}>Buscar</button>
                 <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Lista de usuarios</button>
@@ -434,17 +461,26 @@ const handleIncrementarCredenciales = () => {
             </div>
             <div className="mb-6">
               <label className="block font-medium text-gray-700 mb-1">Nombre de la subcuenta</label>
-              <input type="text" placeholder="Nombre de la subcuenta" value={nombreSubcuenta} onChange={(e) => setNombreSubcuenta(e.target.value)} className="w-full p-2 border border-gray-300 rounded mb-1" />
+              <input
+                type="text"
+                placeholder="Nombre de la subcuenta"
+                value={nombreSubcuenta}
+                onChange={(e) => setNombreSubcuenta(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded mb-1 text-black"
+              />
               <div className="text-right text-sm text-gray-500">0 / 50</div>
             </div>
             <div className="flex justify-end">
-              <button className="flex items-center gap-2 px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]" onClick={handleCreateSubcuenta}>
+              <button
+                className="flex items-center gap-2 px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
+                onClick={handleCreateSubcuenta}
+              >
                 Crear subcuenta <FaPencilAlt />
               </button>
             </div>
           </div>
         )}
-  {tabActiva === 'usuarios' && (
+ {tabActiva === 'usuarios' && (
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white">
               <thead className="bg-gray-100">
@@ -520,7 +556,7 @@ const handleIncrementarCredenciales = () => {
             </div>
           </div>
         )}
- {tabActiva === 'campanas' && (
+        {tabActiva === 'campanas' && (
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white">
               <thead className="bg-gray-100">
@@ -568,17 +604,17 @@ const handleIncrementarCredenciales = () => {
           <h2 className="text-2xl font-bold text-gray-800 mb-6">Crear números telefónicos</h2>
           <div className="mb-6">
             <label className="block font-medium text-gray-700 mb-1">Número de teléfono</label>
-            <input type="text" placeholder="Número de teléfono" className="w-full p-2 border border-gray-300 rounded mb-2" />
+            <input type="text" placeholder="Número de teléfono" className="w-full p-2 border border-gray-300 rounded mb-2 text-black" />
             <div className="text-right text-sm text-gray-500">0 / 10</div>
           </div>
           <div className="mb-6">
             <label className="block font-medium text-gray-700 mb-1">Nombre</label>
-            <input type="text" placeholder="Nombre" className="w-full p-2 border border-gray-300 rounded mb-2" />
+            <input type="text" placeholder="Nombre" className="w-full p-2 border border-gray-300 rounded mb-2 text-black" />
             <div className="text-right text-sm text-gray-500">0 / 30</div>
           </div>
           <div className="mb-6">
-            <label className="block font-medium text-gray-700 mb-1">Operador</label>
-            <input type="text" placeholder="Operador" className="w-full p-2 border border-gray-300 rounded mb-2" />
+            <label className="block font-medium text-gray-700 mb-1">compañia</label>
+            <input type="text" placeholder="compañia" className="w-full p-2 border border-gray-300 rounded mb-2 text-black" />
             <div className="text-right text-sm text-gray-500">0 / 30</div>
           </div>
           <div className="flex justify-end">
@@ -586,7 +622,7 @@ const handleIncrementarCredenciales = () => {
           </div>
         </div>
         )}
- {tabActiva === 'numeros-tab' && (
+        {tabActiva === 'numeros-tab' && (
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white">
               <thead className="bg-gray-100">
@@ -665,7 +701,7 @@ const handleIncrementarCredenciales = () => {
               placeholder="Nombre"
               value={nombreCredencial}
               onChange={(e) => setNombreCredencial(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded mb-2"
+              className="w-full p-2 border border-gray-300 rounded mb-2 text-black"
             />
             <div className="text-right text-sm text-gray-500">{nombreCredencial.length} / 50</div>
           </div>
@@ -689,7 +725,7 @@ const handleIncrementarCredenciales = () => {
           </div>
         </div>
         )}
- {tabActiva === 'asociar-numeros' && (
+        {tabActiva === 'asociar-numeros' && (
           <div className="max-w-3xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Asociar números telefónicos</h2>
 
@@ -701,7 +737,7 @@ const handleIncrementarCredenciales = () => {
                 placeholder="Correo"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded mb-2"
+                className="w-full p-2 border border-gray-300 rounded mb-2 text-black"
               />
               <div className="flex gap-2">
                 <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Buscar</button>
@@ -725,7 +761,7 @@ const handleIncrementarCredenciales = () => {
 
             {/* Numero Telefonico */}
             <div className="mb-6">
-              <label  className="block font-medium text-gray-700 mb-1">Numero telefonico</label>
+              <label className="block font-medium text-gray-700 mb-1">Numero telefonico</label>
               <select
                 value={numeroTelefonicoSeleccionado}
                 onChange={(e) => setNumeroTelefonicoSeleccionado(Number(e.target.value))}
@@ -738,7 +774,7 @@ const handleIncrementarCredenciales = () => {
             </div>
             {/* Cantidad de números */}
             <div className="mb-6">
-              <label  className="block font-medium text-gray-700 mb-1">Cantidad de números</label>
+              <label className="block font-medium text-gray-700 mb-1">Cantidad de números</label>
               <div className="flex items-center">
                 <select
                   value={numeroTelefonicoSeleccionado}
@@ -780,13 +816,13 @@ const handleIncrementarCredenciales = () => {
 
             {/* Usuario */}
             <div className="mb-6">
-              <label  className="block font-medium text-gray-700 mb-1">Usuario</label>
+              <label className="block font-medium text-gray-700 mb-1">Usuario</label>
               <input
                 type="email"
                 placeholder="Correo"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded mb-2"
+                className="w-full p-2 border border-gray-300 rounded mb-2 text-black"
               />
               <div className="flex gap-2">
                 <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Buscar</button>
@@ -796,7 +832,7 @@ const handleIncrementarCredenciales = () => {
 
             {/* Subcuenta */}
             <div className="mb-6">
-              <label  className="block font-medium text-gray-700 mb-1">Subcuenta</label>
+              <label className="block font-medium text-gray-700 mb-1">Subcuenta</label>
               <select
                 value={subcuentaSeleccionada}
                 onChange={(e) => setSubcuentaSeleccionada(Number(e.target.value))}
@@ -809,7 +845,7 @@ const handleIncrementarCredenciales = () => {
             </div>
             {/* Credenciales */}
             <div className="mb-6">
-              <label  className="block font-medium text-gray-700 mb-1">Credenciales</label>
+              <label className="block font-medium text-gray-700 mb-1">Credenciales</label>
               <select
                 value={credencialSeleccionada}
                 onChange={(e) => setCredencialSeleccionada(Number(e.target.value))}
@@ -823,7 +859,7 @@ const handleIncrementarCredenciales = () => {
 
             {/* Cantidad de Credenciales */}
             <div className="mb-6">
-              <label  className="block font-medium text-gray-700 mb-1">Cantidad de Credenciales</label>
+              <label className="block font-medium text-gray-700 mb-1">Cantidad de Credenciales</label>
               <div className="flex items-center">
                 <select
                   value={credencialSeleccionada}
@@ -863,7 +899,7 @@ const handleIncrementarCredenciales = () => {
           <div className="max-w-3xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Crear Campaña</h2>
             <div className="mb-6">
-              <label  className="block font-medium text-gray-700 mb-1">Nombre</label>
+              <label className="block font-medium text-gray-700 mb-1">Nombre</label>
               <input
                 type="text"
                 id="nombre"
@@ -871,11 +907,11 @@ const handleIncrementarCredenciales = () => {
                 placeholder="Nombre de la campaña"
                 value={campanaForm.nombre}
                 onChange={handleCampanaFormChange}
-                className="w-full p-2 border border-gray-300 rounded mb-2"
+                className="w-full p-2 border border-gray-300 rounded mb-2 text-black"
               />
             </div>
             <div className="mb-6">
-              <label  className="block font-medium text-gray-700 mb-1">Descripción</label>
+              <label className="block font-medium text-gray-700 mb-1">Descripción</label>
               <textarea
                 id="descripcion"
                 name="descripcion"
@@ -883,11 +919,11 @@ const handleIncrementarCredenciales = () => {
                 placeholder="Descripción de la campaña"
                 value={campanaForm.descripcion}
                 onChange={handleCampanaFormChange}
-                className="w-full p-2 border border-gray-300 rounded mb-2"
+                className="w-full p-2 border border-gray-300 rounded mb-2 text-black"
               />
             </div>
             <div className="mb-6">
-              <label  className="block font-medium text-gray-700 mb-1">Usuario</label>
+              <label className="block font-medium text-gray-700 mb-1">Usuario</label>
               <input
                 type="email"
                 id="usuario"
@@ -895,7 +931,7 @@ const handleIncrementarCredenciales = () => {
                 placeholder="Correo del usuario"
                 value={campanaForm.usuario}
                 onChange={handleCampanaFormChange}
-                className="w-full p-2 border border-gray-300 rounded mb-2"
+                className="w-full p-2 border border-gray-300 rounded mb-2 text-black"
               />
               <div className="flex gap-2">
                 <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">
@@ -904,7 +940,7 @@ const handleIncrementarCredenciales = () => {
               </div>
             </div>
             <div className="mb-6">
-              <label  className="block font-medium text-gray-700 mb-1">Subcuenta</label>
+              <label className="block font-medium text-gray-700 mb-1">Subcuenta</label>
               <select
                 id="subcuenta"
                 name="subcuenta"
@@ -933,14 +969,14 @@ const handleIncrementarCredenciales = () => {
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Asociar Campos</h2>
 
             <div className="mb-6">
-              <label  className="block font-medium text-gray-700 mb-1">Usuario</label>
+              <label className="block font-medium text-gray-700 mb-1">Usuario</label>
               <input
                 type="email"
                 name="usuario"
                 placeholder="Correo"
                 value={asociarCamposForm.usuario}
                 onChange={handleAsociarCamposChange}
-                className="w-full p-2 border border-gray-300 rounded mb-2"
+                className="w-full p-2 border border-gray-300 rounded mb-2 text-black"
               />
               <div className="flex gap-2">
                 <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Buscar</button>
@@ -949,7 +985,7 @@ const handleIncrementarCredenciales = () => {
             </div>
 
             <div className="mb-6">
-              <label  className="block font-medium text-gray-700 mb-1">Subcuenta</label>
+              <label className="block font-medium text-gray-700 mb-1">Subcuenta</label>
               <select
                 name="subcuenta"
                 value={asociarCamposForm.subcuenta || ''}
@@ -963,7 +999,7 @@ const handleIncrementarCredenciales = () => {
             </div>
 
             <div className="mb-6">
-              <label  className="block font-medium text-gray-700 mb-1">Campaña</label>
+              <label className="block font-medium text-gray-700 mb-1">Campaña</label>
               <select
                 name="campana"
                 value={asociarCamposForm.campana || ''}
@@ -977,38 +1013,38 @@ const handleIncrementarCredenciales = () => {
             </div>
 
             <div className="mb-6">
-              <label  className="block font-medium text-gray-700 mb-1">Sheet ID</label>
+              <label className="block font-medium text-gray-700 mb-1">Sheet ID</label>
               <input
                 type="text"
                 name="sheetId"
                 placeholder="ID de la hoja de cálculo"
                 value={asociarCamposForm.sheetId}
                 onChange={handleAsociarCamposChange}
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded text-black"
               />
             </div>
 
             <div className="mb-6">
-              <label  className="block font-medium text-gray-700 mb-1">Hoja</label>
+              <label className="block font-medium text-gray-700 mb-1">Hoja</label>
               <input
                 type="text"
                 name="hoja"
                 placeholder="Nombre de la hoja"
                 value={asociarCamposForm.hoja}
                 onChange={handleAsociarCamposChange}
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded text-black"
               />
             </div>
 
             <div className="mb-6">
-              <label  className="block font-medium text-gray-700 mb-1">Rango</label>
+              <label className="block font-medium text-gray-700 mb-1">Rango</label>
               <input
                 type="text"
                 name="rango"
                 placeholder="Rango de celdas"
                 value={asociarCamposForm.rango}
                 onChange={handleAsociarCamposChange}
-                className="w-full p-2 border border-gray-300 rounded"
+                className="w-full p-2 border border-gray-300 rounded text-black"
               />
             </div>
 

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import icon from '../../img/icon.png';
 import { useNavigate } from 'react-router-dom';
-// import mysql from 'mysql'; // Eliminado
 
 const Login = () => {
   const navigate = useNavigate();
@@ -14,7 +13,7 @@ const Login = () => {
     setErrorMessage('');
 
     try {
-      const response = await fetch('http://localhost:3001/login', { // Cambia la URL si es necesario
+      const response = await fetch('http://localhost:3001/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -30,7 +29,7 @@ const Login = () => {
         navigate('/home'); // Redirige a la ruta /home
       } else {
         // Credenciales inválidas
-        setErrorMessage(data.message || 'Error al iniciar sesión.'); // Usa el mensaje del servidor
+        setErrorMessage(data.message || 'Error al iniciar sesión.');
       }
     } catch (error) {
       console.error('Error al conectar con el servidor:', error);
