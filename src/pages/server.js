@@ -137,32 +137,32 @@ app.get('/campaigns', async (req, res) => {
   try {
     const [results, fields] = await db.promise().query(`
       SELECT
-    C.id AS ID,
-    C.name AS Nombre,
-    C.description AS Descripción,
-    SA.name AS Subcuenta,
-    CTw.name AS CredencialTwilio,
-    CGcp.name AS CredencialGcp,
-    COUNT(DISTINCT T.id) AS Plantillas,
-    COUNT(DISTINCT S.id) AS Sheets,
-    DATE_FORMAT(C.created_at, '%d/%m/%Y, %H:%i:%s') AS Creado,
-    DATE_FORMAT(C.updated_at, '%d/%m/%Y, %H:%i:%s') AS Actualizado
-FROM
-    Campaign AS C
-LEFT JOIN
-    sub_accounts AS SA ON C.sub_account_id = SA.id
-LEFT JOIN
-    credentials AS CTw ON C.credential_template_id = CTw.id
-LEFT JOIN
-    credentials AS CGcp ON C.credential_sheet_id = CGcp.id
-LEFT JOIN
-    Templates AS T ON C.id = T.campaign_id
-LEFT JOIN
-    Sheets AS S ON C.id = S.campaign_id
-GROUP BY
-    C.id, C.name, C.description, SA.name, CTw.name, CGcp.name, C.created_at, C.updated_at
-ORDER BY
-    C.id;
+        C.id AS ID,
+        C.name AS Nombre,
+        C.description AS Descripción,
+        SA.name AS Subcuenta,
+        CTw.name AS CredencialTwilio,
+        CGcp.name AS CredencialGcp,
+        COUNT(DISTINCT T.id) AS Plantillas,
+        COUNT(DISTINCT S.id) AS Sheets,
+        DATE_FORMAT(C.created_at, '%d/%m/%Y, %H:%i:%s') AS Creado,
+        DATE_FORMAT(C.updated_at, '%d/%m/%Y, %H:%i:%s') AS Actualizado
+      FROM
+          Campaign AS C
+      LEFT JOIN
+          sub_accounts AS SA ON C.sub_account_id = SA.id
+      LEFT JOIN
+          credentials AS CTw ON C.credential_template_id = CTw.id
+      LEFT JOIN
+          credentials AS CGcp ON C.credential_sheet_id = CGcp.id
+      LEFT JOIN
+          Templates AS T ON C.id = T.campaign_id
+      LEFT JOIN
+          Sheets AS S ON C.id = S.campaign_id
+      GROUP BY
+          C.id, C.name, C.description, SA.name, CTw.name, CGcp.name, C.created_at, C.updated_at
+      ORDER BY
+          C.id;
     `);
 
     res.status(200).json(results);
@@ -193,16 +193,38 @@ app.get('/number_phones', async (req, res) => {
   }
 });
 
+app.post('/number_phones', async (req, res) => {
+  const { name, company, number } = req.body;
+
+  if (!name || !company || !number) {
+    return res.status(400).json({ message: 'Nombre, compañía y número son requeridos.' });
+  }
+
+  const insertNumberPhoneQuery = 'INSERT INTO number_phones (name, company, number, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())';
+
+  db.query(insertNumberPhoneQuery, [name, company, number], (insertErr, insertResults) => {
+    if (insertErr) {
+      console.error('Error al crear el número telefónico:', insertErr);
+      return res.status(500).json({ message: 'Error al crear el número telefónico.' });
+    }
+
+    console.log('Número telefónico creado con ID:', insertResults.insertId);
+    res.status(201).json({ message: 'Número telefónico creado exitosamente.' });
+  });
+});
+
+
+
 app.get('/sub_accounts', async (req, res) => {
   try {
     const [results, fields] = await db.promise().query(`
-      SELECT 
-          id, 
-          user_id AS Usuario, 
-          name AS Nombre, 
-          DATE_FORMAT(created_at, '%d/%m/%Y, %H:%i:%s') AS Creado, 
-          DATE_FORMAT(updated_at, '%d/%m/%Y, %H:%i:%s') AS Actualizado 
-      FROM 
+      SELECT
+          id,
+          user_id AS Usuario,
+          name AS Nombre,
+          DATE_FORMAT(created_at, '%d/%m/%Y, %H:%i:%s') AS Creado,
+          DATE_FORMAT(updated_at, '%d/%m/%Y, %H:%i:%s') AS Actualizado
+      FROM
           sub_accounts;
     `);
 
@@ -216,7 +238,7 @@ app.get('/sub_accounts', async (req, res) => {
 app.get('/users', async (req, res) => {
   try {
     const [results, fields] = await db.promise().query(`
-      SELECT 
+      SELECT
           id,
           username,
           email,
@@ -225,7 +247,7 @@ app.get('/users', async (req, res) => {
           is_superuser,
           is_active,
           DATE_FORMAT(date_joined, '%d/%m/%Y, %H:%i:%s') AS date_joined,
-          last_login
+          DATE_FORMAT(last_login, '%d/%m/%Y, %H:%i:%s') AS last_login 
       FROM users;
     `);
 
@@ -253,6 +275,143 @@ app.get('/credentials', async (req, res) => {
     console.error('Error al ejecutar la consulta:', err);
     res.status(500).json({ message: 'Error al obtener las credenciales.' });
   }
+});
+
+
+// Endpoint para crear credenciales
+app.post('/credentials', async (req, res) => {
+  const { name, json } = req.body;
+
+  if (!name || !json) {
+    return res.status(400).json({ message: 'Nombre y JSON son requeridos.' });
+  }
+
+  const insertCredentialQuery = 'INSERT INTO credentials (name, json, created_at, updated_at) VALUES (?, ?, NOW(), NOW())';
+
+  db.query(insertCredentialQuery, [name, json], (insertErr, insertResults) => {
+    if (insertErr) {
+      console.error('Error al crear la credencial:', insertErr);
+      return res.status(500).json({ message: 'Error al crear la credencial.' });
+    }
+
+    console.log('Credencial creada con ID:', insertResults.insertId);
+    res.status(201).json({ message: 'Credencial creada exitosamente.' });
+  });
+});
+
+// ... todo tu código actual
+
+// Endpoint para obtener subcuentas por usuario (usar email)
+app.get('/sub_accounts_by_user', async (req, res) => {
+  const { email } = req.query;
+  
+  if (!email) {
+    return res.status(400).json({ message: 'Email es requerido.' });
+  }
+
+  try {
+    // Primero obtenemos el ID del usuario
+    const [userResults] = await db.promise().query('SELECT id FROM users WHERE email = ?', [email]);
+    
+    if (userResults.length === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado.' });
+    }
+    
+    const userId = userResults[0].id;
+    
+    // Luego obtenemos las subcuentas de ese usuario
+    const [results] = await db.promise().query(`
+      SELECT
+          id,
+          user_id AS Usuario,
+          name AS Nombre,
+          DATE_FORMAT(created_at, '%d/%m/%Y, %H:%i:%s') AS Creado,
+          DATE_FORMAT(updated_at, '%d/%m/%Y, %H:%i:%s') AS Actualizado
+      FROM
+          sub_accounts
+      WHERE
+          user_id = ?
+    `, [userId]);
+
+    res.status(200).json(results);
+  } catch (err) {
+    console.error('Error al ejecutar la consulta:', err);
+    res.status(500).json({ message: 'Error al obtener las subcuentas del usuario.' });
+  }
+});
+
+// Endpoint para asociar números telefónicos a una subcuenta
+app.post('/associate_number_phone', async (req, res) => {
+  const { sub_account_id, number_phone_id } = req.body;
+  
+  if (!sub_account_id || !number_phone_id) {
+    return res.status(400).json({ message: 'ID de subcuenta y ID de número telefónico son requeridos.' });
+  }
+
+  try {
+    // Verificar que la subcuenta existe
+    const [subAccountResults] = await db.promise().query('SELECT id FROM sub_accounts WHERE id = ?', [sub_account_id]);
+    
+    if (subAccountResults.length === 0) {
+      return res.status(404).json({ message: 'Subcuenta no encontrada.' });
+    }
+    
+    // Verificar que el número telefónico existe
+    const [numberPhoneResults] = await db.promise().query('SELECT id FROM number_phones WHERE id = ?', [number_phone_id]);
+    
+    if (numberPhoneResults.length === 0) {
+      return res.status(404).json({ message: 'Número telefónico no encontrado.' });
+    }
+    
+    // Crear la asociación en la tabla correspondiente (asumiendo que existe una tabla para esta relación)
+    // Si la tabla no existe, deberías crearla primero.
+    const [result] = await db.promise().query(`
+      INSERT INTO sub_account_number_phones (sub_account_id, number_phone_id, created_at, updated_at)
+      VALUES (?, ?, NOW(), NOW())
+    `, [sub_account_id, number_phone_id]);
+
+    res.status(201).json({ message: 'Número telefónico asociado exitosamente a la subcuenta.' });
+  } catch (err) {
+    console.error('Error al ejecutar la consulta:', err);
+    res.status(500).json({ message: 'Error al asociar el número telefónico a la subcuenta.' });
+  }
+});
+
+// Endpoint para obtener números telefónicos asociados a una subcuenta
+app.get('/number_phones_by_sub_account', async (req, res) => {
+  const { sub_account_id } = req.query;
+  
+  if (!sub_account_id) {
+    return res.status(400).json({ message: 'ID de subcuenta es requerido.' });
+  }
+
+  try {
+    const [results] = await db.promise().query(`
+      SELECT
+          np.id,
+          np.name AS nombre,
+          np.company AS compania,
+          np.number AS numero,
+          DATE_FORMAT(np.created_at, '%d/%m/%Y, %H:%i:%s') AS creado,
+          DATE_FORMAT(np.updated_at, '%d/%m/%Y, %H:%i:%s') AS actualizado
+      FROM
+          number_phones np
+      JOIN
+          sub_account_number_phones sanp ON np.id = sanp.number_phone_id
+      WHERE
+          sanp.sub_account_id = ?
+    `, [sub_account_id]);
+
+    res.status(200).json(results);
+  } catch (err) {
+    console.error('Error al ejecutar la consulta:', err);
+    res.status(500).json({ message: 'Error al obtener los números telefónicos de la subcuenta.' });
+  }
+});
+
+// Esta debe ser la última línea de tu archivo, después de todos los endpoints
+app.listen(port, () => {
+  console.log(`Servidor backend escuchando en el puerto ${port}`);
 });
 
 app.listen(port, () => {

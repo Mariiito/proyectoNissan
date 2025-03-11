@@ -100,6 +100,13 @@ interface SubcuentasData {
   Actualizado: string;
 }
 
+// Nueva interfaz para el formulario de números telefónicos
+interface NumeroTelefonicoForm {
+  numero: string;
+  nombre: string;
+  compania: string;
+}
+
 const Admin: React.FC = () => {
   const navigate = useNavigate();
 
@@ -139,6 +146,19 @@ const Admin: React.FC = () => {
   const [numeroTelefonicoSeleccionado, setNumeroTelefonicoSeleccionado] = useState<number>(0);
   const [subcuentaSeleccionada, setSubcuentaSeleccionada] = useState<number>(0);
 
+  // Estado para el formulario de números telefónicos
+  const [numeroTelefonicoForm, setNumeroTelefonicoForm] = useState<NumeroTelefonicoForm>({
+    numero: '',
+    nombre: '',
+    compania: ''
+  });
+
+  // Estado para mostrar mensajes de éxito o error
+  const [mensaje, setMensaje] = useState<{ texto: string, tipo: 'exito' | 'error' | '' }>({
+    texto: '',
+    tipo: ''
+  });
+
   // Nuevo estado para el email del usuario
   const [userEmail, setUserEmail] = useState<string>('');
 
@@ -165,8 +185,10 @@ const Admin: React.FC = () => {
   });
 
   const [campaignsData, setCampaignsData] = useState<CampaignData[]>([]);
-
   const [numberPhonesData, setNumberPhonesData] = useState<NumberPhoneData[]>([]);
+  // Estado para controlar la paginación
+  const [paginaActual, setPaginaActual] = useState(1);
+  const elementosPorPagina = 10;
 
   const [subcuentasData, setSubcuentasData] = useState<SubcuentasData[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -215,7 +237,8 @@ const Admin: React.FC = () => {
       console.error("Could not fetch campaigns:", error);
     }
   };
-useEffect(() => {
+
+  useEffect(() => {
     const fetchSubcuentas = async () => {
       try {
         const response = await fetch('http://localhost:3001/sub_accounts'); // Ajusta la URL si es necesario
@@ -233,6 +256,7 @@ useEffect(() => {
       fetchSubcuentas();
     }
   }, [tabActiva]);
+
   useEffect(() => {
     const fetchNumberPhones = async () => {
       try {
@@ -247,7 +271,7 @@ useEffect(() => {
       }
     };
 
-    if (tabActiva === 'numeros-tab') {
+    if (tabActiva === 'numeros-tab' || tabActiva === 'numeros') {
       fetchNumberPhones();
     }
   }, [tabActiva]);
@@ -302,6 +326,15 @@ useEffect(() => {
 
   const handleCreateSubcuenta = async () => {
     try {
+      // Validar que todos los campos estén llenos
+      if (!email || !nombreSubcuenta) {
+        setMensaje({
+          texto: 'Correo electrónico y nombre de subcuenta son requeridos',
+          tipo: 'error'
+        });
+        return;
+      }
+
       const response = await fetch('http://localhost:3001/sub_accounts', {
         method: 'POST',
         headers: {
@@ -311,23 +344,141 @@ useEffect(() => {
       });
 
       if (response.ok) {
-        alert(`Subcuenta creada exitosamente para el usuario: ${email}`);
+        // Mostrar mensaje de éxito
+        setMensaje({
+          texto: `Subcuenta creada exitosamente para el usuario: ${email}`,
+          tipo: 'exito'
+        });
+
         // Limpiar los campos después de la creación exitosa
         setEmail('');
         setNombreSubcuenta('');
+
+        // Si estamos en la pestaña de subcuentas-tab, actualizar la lista
+        if (tabActiva === 'subcuentas-tab') {
+          const fetchSubcuentas = async () => {
+            try {
+              const response = await fetch('http://localhost:3001/sub_accounts');
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              const data = await response.json();
+              setSubcuentasData(data);
+            } catch (error) {
+              console.error("Could not fetch subcuentas:", error);
+            }
+          };
+
+          fetchSubcuentas();
+        }
       } else {
         const errorData = await response.json();
         console.error('Error al crear la subcuenta:', errorData);
-        alert(`Error al crear la subcuenta: ${errorData.message || 'Error desconocido'}`);
+        setMensaje({
+          texto: `Error al crear la subcuenta: ${errorData.message || 'Error desconocido'}`,
+          tipo: 'error'
+        });
       }
     } catch (error) {
       console.error('Error al conectar con el servidor:', error);
-      alert('Error al conectar con el servidor.');
+      setMensaje({
+        texto: 'Error al conectar con el servidor',
+        tipo: 'error'
+      });
     }
+
+    // Ocultar el mensaje después de 5 segundos
+    setTimeout(() => {
+      setMensaje({ texto: '', tipo: '' });
+    }, 5000);
   };
 
-  const handleCrearCredencial = () => {
-    alert(`Creando credencial con nombre: ${nombreCredencial} y JSON: ${jsonCredencial}`);
+  const handleCrearCredencial = async () => {
+    try {
+      // Validar que todos los campos estén llenos
+      if (!nombreCredencial || !jsonCredencial) {
+        setMensaje({
+          texto: 'Nombre y JSON son requeridos',
+          tipo: 'error'
+        });
+        return;
+      }
+
+      // Validar que el JSON sea válido
+      try {
+        // Intentar parsear el JSON para verificar que es válido
+        JSON.parse(jsonCredencial);
+      } catch (e) {
+        setMensaje({
+          texto: 'El formato JSON no es válido',
+          tipo: 'error'
+        });
+        return;
+      }
+
+      // Enviar los datos al servidor
+      const response = await fetch('http://localhost:3001/credentials', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: nombreCredencial,
+          json: jsonCredencial
+        }),
+      });
+
+      if (response.ok) {
+        // Mostrar mensaje de éxito
+        setMensaje({
+          texto: 'Credencial creada exitosamente',
+          tipo: 'exito'
+        });
+
+        // Limpiar los campos después de la creación exitosa
+        setNombreCredencial('');
+        setJsonCredencial('{\n  "key": "value"\n}');
+        if (textareaRef.current) {
+          textareaRef.current.value = '{\n  "key": "value"\n}';
+        }
+
+        // Si estamos en la pestaña de credenciales-tab, actualizar la lista
+        if (tabActiva === 'credenciales-tab') {
+          const fetchCredentials = async () => {
+            try {
+              const response = await fetch('http://localhost:3001/credentials');
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              const data = await response.json();
+              setCredentials(data);
+            } catch (error) {
+              console.error("Could not fetch credentials:", error);
+            }
+          };
+
+          fetchCredentials();
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('Error al crear la credencial:', errorData);
+        setMensaje({
+          texto: `Error al crear la credencial: ${errorData.message || 'Error desconocido'}`,
+          tipo: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error al conectar con el servidor:', error);
+      setMensaje({
+        texto: 'Error al conectar con el servidor',
+        tipo: 'error'
+      });
+    }
+
+    // Ocultar el mensaje después de 5 segundos
+    setTimeout(() => {
+      setMensaje({ texto: '', tipo: '' });
+    }, 5000);
   };
 
   const handleAsociarNumeros = () => {
@@ -371,7 +522,92 @@ useEffect(() => {
     alert(`Asociando campos: ${JSON.stringify(asociarCamposForm)}`);
   };
 
-  // Options para Selects
+  // Nuevo handler para el formulario de número telefónico
+  const handleNumeroTelefonicoFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNumeroTelefonicoForm(prevForm => ({
+      ...prevForm,
+      [name]: value,
+    }));
+  };
+
+  // Nuevo handler para crear número telefónico
+  const handleCrearNumeroTelefonico = async () => {
+    try {
+      // Validar que todos los campos estén llenos
+      if (!numeroTelefonicoForm.numero || !numeroTelefonicoForm.nombre || !numeroTelefonicoForm.compania) {
+        setMensaje({
+          texto: 'Todos los campos son obligatorios',
+          tipo: 'error'
+        });
+        return;
+      }
+
+      // Enviar los datos al servidor
+      const response = await fetch('http://localhost:3001/number_phones', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: numeroTelefonicoForm.nombre,
+          company: numeroTelefonicoForm.compania,
+          number: numeroTelefonicoForm.numero
+        }),
+      });
+
+      if (response.ok) {
+        // Mostrar mensaje de éxito
+        setMensaje({
+          texto: 'Número telefónico creado exitosamente',
+          tipo: 'exito'
+        });
+
+        // Limpiar el formulario
+        setNumeroTelefonicoForm({
+          numero: '',
+          nombre: '',
+          compania: ''
+        });
+
+        // Actualizar la lista de números telefónicos
+        const fetchNumberPhones = async () => {
+          try {
+            const response = await fetch('http://localhost:3001/number_phones');
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            setNumberPhonesData(data);
+          } catch (error) {
+            console.error("Could not fetch number phones:", error);
+          }
+        };
+
+        fetchNumberPhones();
+      } else {
+        const errorData = await response.json();
+        console.error('Error al crear el número telefónico:', errorData);
+        setMensaje({
+          texto: `Error al crear el número telefónico: ${errorData.message || 'Error desconocido'}`,
+          tipo: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error al conectar con el servidor:', error);
+      setMensaje({
+        texto: 'Error al conectar con el servidor',
+        tipo: 'error'
+      });
+    }
+
+    // Ocultar el mensaje después de 5 segundos
+    setTimeout(() => {
+      setMensaje({ texto: '', tipo: '' });
+    }, 5000);
+  };
+
+  // Options para selects
   const subcuentasOptions = subcuentas.map(subcuenta => (
     <option
       key={subcuenta.id}
@@ -405,8 +641,12 @@ useEffect(() => {
   ));
 
   function handleDecrementarNumeros(): void {
-    throw new Error('Function not implemented.');
+    // Asegúrate de que tienes un estado para la cantidad de números
+    if (typeof CantidadCredenciales === 'number') {
+      setCantidadCredenciales(prev => prev > 0 ? prev - 1 : 0);
+    }
   }
+
 
   // Estilos personalizados para los selects
   const selectStyle = {
@@ -442,6 +682,13 @@ useEffect(() => {
       </nav>
       {/* Contenido principal */}
       <main className="flex-1 p-6 overflow-auto">
+        {/* Mensaje de éxito o error */}
+        {mensaje.texto && (
+          <div className={`p-4 mb-4 rounded ${mensaje.tipo === 'exito' ? 'bg-green-100 border-green-500 text-green-700' : 'bg-red-100 border-red-500 text-red-700'}`}>
+            {mensaje.texto}
+          </div>
+        )}
+
         {tabActiva === 'subcuentas' && (
           <div className="max-w-3xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Crear subcuenta</h2>
@@ -480,7 +727,7 @@ useEffect(() => {
             </div>
           </div>
         )}
- {tabActiva === 'usuarios' && (
+        {tabActiva === 'usuarios' && (
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white">
               <thead className="bg-gray-100">
@@ -519,6 +766,116 @@ useEffect(() => {
             <div className="flex justify-end mt-4 gap-2">
               <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Anterior</button>
               <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Siguiente</button>
+            </div>
+          </div>
+        )}
+        {tabActiva === 'numeros' && (
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Crear números telefónicos</h2>
+            <div className="mb-6">
+              <label className="block font-medium text-gray-700 mb-1">Número de teléfono</label>
+              <input
+                type="text"
+                name="numero"
+                placeholder="Número de teléfono"
+                value={numeroTelefonicoForm.numero}
+                onChange={handleNumeroTelefonicoFormChange}
+                className="w-full p-2 border border-gray-300 rounded mb-2 text-black"
+              />
+              <div className="text-right text-sm text-gray-500">{numeroTelefonicoForm.numero.length} / 10</div>
+            </div>
+            <div className="mb-6">
+              <label className="block font-medium text-gray-700 mb-1">Nombre</label>
+              <input
+                type="text"
+                name="nombre"
+                placeholder="Nombre"
+                value={numeroTelefonicoForm.nombre}
+                onChange={handleNumeroTelefonicoFormChange}
+                className="w-full p-2 border border-gray-300 rounded mb-2 text-black"
+              />
+              <div className="text-right text-sm text-gray-500">{numeroTelefonicoForm.nombre.length} / 30</div>
+            </div>
+            <div className="mb-6">
+              <label className="block font-medium text-gray-700 mb-1">Compañía</label>
+              <input
+                type="text"
+                name="compania"
+                placeholder="Compañía"
+                value={numeroTelefonicoForm.compania}
+                onChange={handleNumeroTelefonicoFormChange}
+                className="w-full p-2 border border-gray-300 rounded mb-2 text-black"
+              />
+              <div className="text-right text-sm text-gray-500">{numeroTelefonicoForm.compania.length} / 30</div>
+            </div>
+            <div className="flex justify-end">
+              <button
+                className="flex items-center gap-2 px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
+                onClick={handleCrearNumeroTelefonico}
+              >
+                Crear número telefónico <FaPencilAlt />
+              </button>
+            </div>
+          </div>
+        )}
+        {tabActiva === 'numeros-tab' && (
+          <div className="overflow-x-auto">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Listado de números telefónicos</h2>
+            <table className="min-w-full bg-white">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="py-3 px-4 text-left font-medium text-black">ID</th>
+                  <th className="py-3 px-4 text-left font-medium text-black">NOMBRE</th>
+                  <th className="py-3 px-4 text-left font-medium text-black">COMPAÑÍA</th>
+                  <th className="py-3 px-4 text-left font-medium text-black">NÚMERO</th>
+                  <th className="py-3 px-4 text-left font-medium text-black">CREADO</th>
+                  <th className="py-3 px-4 text-left font-medium text-black">ACTUALIZADO</th>
+                  <th className="py-3 px-4 text-left font-medium text-black">ACCIONES</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {numberPhonesData.map(numero => (
+                  <tr key={numero.id} className="hover:bg-gray-50">
+                    <td className="py-3 px-4 text-black">{numero.id}</td>
+                    <td className="py-3 px-4 text-black">{numero.nombre}</td>
+                    <td className="py-3 px-4 text-black">{numero.compania}</td>
+                    <td className="py-3 px-4 text-black">{numero.numero}</td>
+                    <td className="py-3 px-4 text-black">{numero.creado}</td>
+                    <td className="py-3 px-4 text-black">{numero.actualizado}</td>
+                    <td className="py-3 px-4">
+                      <button className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Editar</button>
+                    </td>
+                  </tr>
+                ))}
+                {numberPhonesData.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="py-3 px-4 text-center text-gray-500">
+                      No hay números telefónicos registrados.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            <div className="flex justify-between mt-4">
+              <div className="text-gray-500">
+                Mostrando {numberPhonesData.length > 0 ? (paginaActual - 1) * elementosPorPagina + 1 : 0} - {Math.min(paginaActual * elementosPorPagina, numberPhonesData.length)} de {numberPhonesData.length} registros
+              </div>
+              <div className="flex gap-2">
+                <button
+                  className={`px-4 py-2 border border-gray-300 rounded ${paginaActual === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-100 hover:bg-gray-200 text-black'}`}
+                  onClick={() => setPaginaActual(prev => Math.max(prev - 1, 1))}
+                  disabled={paginaActual === 1}
+                >
+                  Anterior
+                </button>
+                <button
+                  className={`px-4 py-2 border border-gray-300 rounded ${paginaActual * elementosPorPagina >= numberPhonesData.length ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-100 hover:bg-gray-200 text-black'}`}
+                  onClick={() => setPaginaActual(prev => numberPhonesData.length > prev * elementosPorPagina ? prev + 1 : prev)}
+                  disabled={paginaActual * elementosPorPagina >= numberPhonesData.length}
+                >
+                  Siguiente
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -600,61 +957,37 @@ useEffect(() => {
             </div>
           </div>
         )}
-        {tabActiva === 'numeros' && (<div className="max-w-3xl mx-auto">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">Crear números telefónicos</h2>
-          <div className="mb-6">
-            <label className="block font-medium text-gray-700 mb-1">Número de teléfono</label>
-            <input type="text" placeholder="Número de teléfono" className="w-full p-2 border border-gray-300 rounded mb-2 text-black" />
-            <div className="text-right text-sm text-gray-500">0 / 10</div>
-          </div>
-          <div className="mb-6">
-            <label className="block font-medium text-gray-700 mb-1">Nombre</label>
-            <input type="text" placeholder="Nombre" className="w-full p-2 border border-gray-300 rounded mb-2 text-black" />
-            <div className="text-right text-sm text-gray-500">0 / 30</div>
-          </div>
-          <div className="mb-6">
-            <label className="block font-medium text-gray-700 mb-1">compañia</label>
-            <input type="text" placeholder="compañia" className="w-full p-2 border border-gray-300 rounded mb-2 text-black" />
-            <div className="text-right text-sm text-gray-500">0 / 30</div>
-          </div>
-          <div className="flex justify-end">
-            <button className="flex items-center gap-2 px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]">Crear números telefónicos <FaPencilAlt /></button>
-          </div>
-        </div>
-        )}
-        {tabActiva === 'numeros-tab' && (
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="py-3 px-4 text-left font-medium text-black">ID</th>
-                  <th className="py-3 px-4 text-left font-medium text-black">NOMBRE</th>
-                  <th className="py-3 px-4 text-left font-medium text-black">COMPAÑÍA</th>
-                  <th className="py-3 px-4 text-left font-medium text-black">NÚMERO</th>
-                  <th className="py-3 px-4 text-left font-medium text-black">CREADO</th>
-                  <th className="py-3 px-4 text-left font-medium text-black">ACTUALIZADO</th>
-                  <th className="py-3 px-4 text-left font-medium text-black">ACCIONES</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {numberPhonesData.map(numero => (
-                  <tr key={numero.id} className="hover:bg-gray-50">
-                    <td className="py-3 px-4 text-black">{numero.id}</td>
-                    <td className="py-3 px-4 text-black">{numero.nombre}</td>
-                    <td className="py-3 px-4 text-black">{numero.compania}</td>
-                    <td className="py-3 px-4 text-black">{numero.numero}</td>
-                    <td className="py-3 px-4 text-black">{numero.creado}</td>
-                    <td className="py-3 px-4 text-black">{numero.actualizado}</td>
-                    <td className="py-3 px-4">
-                      <button className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Editar</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="flex justify-end mt-4 gap-2">
-              <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Anterior</button>
-              <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Siguiente</button>
+        {tabActiva === 'credenciales' && (
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Crear credenciales</h2>
+            <div className="mb-6">
+              <label className="block font-medium text-gray-700 mb-1">Nombre de la credencial</label>
+              <input
+                type="text"
+                placeholder="Nombre"
+                value={nombreCredencial}
+                onChange={(e) => setNombreCredencial(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded mb-2 text-black"
+              />
+              <div className="text-right text-sm text-gray-500">{nombreCredencial.length} / 50</div>
+            </div>
+            <div className="mb-6">
+              <label className="block font-medium text-gray-700 mb-1">Credencial en formato JSON</label>
+              <textarea
+                ref={textareaRef}
+                value={jsonCredencial}
+                onChange={(e) => setJsonCredencial(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded mb-2 h-40 text-black"
+              />
+              <div className="text-right text-sm text-gray-500">{jsonCredencial.length}</div>
+            </div>
+            <div className="flex justify-end">
+              <button
+                className="flex items-center gap-2 px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
+                onClick={handleCrearCredencial}
+              >
+                Crear credencial <FaPencilAlt />
+              </button>
             </div>
           </div>
         )}
@@ -692,39 +1025,6 @@ useEffect(() => {
             </div>
           </div>
         )}
-        {tabActiva === 'credenciales' && (<div className="max-w-3xl mx-auto">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">Crear credenciales</h2>
-          <div className="mb-6">
-            <label className="block font-medium text-gray-700 mb-1">Nombre de la credencial</label>
-            <input
-              type="text"
-              placeholder="Nombre"
-              value={nombreCredencial}
-              onChange={(e) => setNombreCredencial(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded mb-2 text-black"
-            />
-            <div className="text-right text-sm text-gray-500">{nombreCredencial.length} / 50</div>
-          </div>
-          <div className="mb-6">
-            <label className="block font-medium text-gray-700 mb-1">Credencial en formato JSON</label>
-            <textarea
-              ref={textareaRef}
-              value={jsonCredencial}
-              onChange={(e) => setJsonCredencial(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded mb-2 h-40 text-black"
-            />
-            <div className="text-right text-sm text-gray-500">{jsonCredencial.length}</div>
-          </div>
-          <div className="flex justify-end">
-            <button
-              className="flex items-center gap-2 px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
-              onClick={handleCrearCredencial}
-            >
-              Crear credencial <FaPencilAlt />
-            </button>
-          </div>
-        </div>
-        )}
         {tabActiva === 'asociar-numeros' && (
           <div className="max-w-3xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Asociar números telefónicos</h2>
@@ -754,21 +1054,21 @@ useEffect(() => {
                 className="w-full p-2 border border-gray-300 rounded"
                 style={selectStyle}
               >
-                <option value={0} style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar compañia</option>
+                <option value={0} style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar compañía</option>
                 {subcuentasOptions}
               </select>
             </div>
 
             {/* Numero Telefonico */}
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Numero telefonico</label>
+              <label className="block font-medium text-gray-700 mb-1">Número telefónico</label>
               <select
                 value={numeroTelefonicoSeleccionado}
                 onChange={(e) => setNumeroTelefonicoSeleccionado(Number(e.target.value))}
                 className="w-full p-2 border border-gray-300 rounded"
                 style={selectStyle}
               >
-                <option value={0} style={{ color: 'black', fontWeight: 'bold' }}>0</option>
+                <option value={0} style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar número</option>
                 {numerosTelefonicosOptions}
               </select>
             </div>
@@ -776,23 +1076,20 @@ useEffect(() => {
             <div className="mb-6">
               <label className="block font-medium text-gray-700 mb-1">Cantidad de números</label>
               <div className="flex items-center">
-                <select
-                  value={numeroTelefonicoSeleccionado}
-                  onChange={(e) => setNumeroTelefonicoSeleccionado(Number(e.target.value))}
-                  className="w-full p-2 border border-gray-300 rounded"
-                  style={selectStyle}
-                >
-                  <option value={0} style={{ color: 'black', fontWeight: 'bold' }}>0</option>
-                  {numerosTelefonicosOptions}
-                </select>
+                <input
+                  type="number"
+                  value={CantidadCredenciales}
+                  readOnly
+                  className="w-full p-2 border border-gray-300 rounded text-black"
+                />
                 <button
-                  className="px-2 py-1 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black"
-                  onClick={handleDecrementarNumeros}
+                  className="px-4 py-2 mx-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black"
+                  onClick={handleIncrementarCredenciales}
                 >
                   +
                 </button>
                 <button
-                  className="px-2 py-1 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black"
+                  className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black"
                   onClick={handleDecrementarNumeros}
                 >
                   -
@@ -825,7 +1122,12 @@ useEffect(() => {
                 className="w-full p-2 border border-gray-300 rounded mb-2 text-black"
               />
               <div className="flex gap-2">
-                <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Buscar</button>
+                <button
+                  className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black"
+                  onClick={handleBuscarUsuario}
+                >
+                  Buscar
+                </button>
                 <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Lista de usuarios</button>
               </div>
             </div>
@@ -839,7 +1141,7 @@ useEffect(() => {
                 className="w-full p-2 border border-gray-300 rounded"
                 style={selectStyle}
               >
-                <option value={0} style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar compañia</option>
+                <option value={0} style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar compañía</option>
                 {subcuentasOptions}
               </select>
             </div>
@@ -852,7 +1154,7 @@ useEffect(() => {
                 className="w-full p-2 border border-gray-300 rounded"
                 style={selectStyle}
               >
-                <option value={0} style={{ color: 'black', fontWeight: 'bold' }}>0</option>
+                <option value={0} style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar credencial</option>
                 {credencialesOptions}
               </select>
             </div>
@@ -861,23 +1163,20 @@ useEffect(() => {
             <div className="mb-6">
               <label className="block font-medium text-gray-700 mb-1">Cantidad de Credenciales</label>
               <div className="flex items-center">
-                <select
-                  value={credencialSeleccionada}
-                  onChange={(e) => setCredencialSeleccionada(Number(e.target.value))}
-                  className="w-full p-2 border border-gray-300 rounded"
-                  style={selectStyle}
-                >
-                  <option value={0} style={{ color: 'black', fontWeight: 'bold' }}>0</option>
-                  {credencialesOptions}
-                </select>
+                <input
+                  type="number"
+                  value={CantidadCredenciales}
+                  readOnly
+                  className="w-full p-2 border border-gray-300 rounded text-black"
+                />
                 <button
-                  className="px-2 py-1 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black"
+                  className="px-4 py-2 mx-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black"
                   onClick={handleIncrementarCredenciales}
                 >
                   +
                 </button>
                 <button
-                  className="px-2 py-1 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black"
+                  className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black"
                   onClick={handleDecrementarCredenciales}
                 >
                   -
@@ -895,7 +1194,6 @@ useEffect(() => {
           </div>
         )}
         {tabActiva === 'crear-campana' && (
-
           <div className="max-w-3xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Crear Campaña</h2>
             <div className="mb-6">
@@ -962,7 +1260,6 @@ useEffect(() => {
               </button>
             </div>
           </div>
-
         )}
         {tabActiva === 'asociar-campos' && (
           <div className="max-w-3xl mx-auto">
@@ -1049,7 +1346,10 @@ useEffect(() => {
             </div>
 
             <div className="flex justify-end">
-              <button className="flex items-center gap-2 px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]" onClick={handleAsociarCamposSubmit}>
+              <button
+                className="flex items-center gap-2 px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
+                onClick={handleAsociarCamposSubmit}
+              >
                 Guardar Asociaciones <FaPencilAlt />
               </button>
             </div>
