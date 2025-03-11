@@ -299,7 +299,6 @@ app.post('/credentials', async (req, res) => {
   });
 });
 
-// ... todo tu código actual
 
 // Endpoint para obtener subcuentas por usuario (usar email)
 app.get('/sub_accounts_by_user', async (req, res) => {
@@ -364,7 +363,6 @@ app.post('/associate_number_phone', async (req, res) => {
     }
     
     // Crear la asociación en la tabla correspondiente (asumiendo que existe una tabla para esta relación)
-    // Si la tabla no existe, deberías crearla primero.
     const [result] = await db.promise().query(`
       INSERT INTO sub_account_number_phones (sub_account_id, number_phone_id, created_at, updated_at)
       VALUES (?, ?, NOW(), NOW())
@@ -414,7 +412,4 @@ app.listen(port, () => {
   console.log(`Servidor backend escuchando en el puerto ${port}`);
 });
 
-app.listen(port, () => {
-  console.log(`Servidor backend escuchando en el puerto ${port}`);
-});
 
