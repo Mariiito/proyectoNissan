@@ -303,7 +303,7 @@ app.post('/credentials', async (req, res) => {
 // Endpoint para obtener subcuentas por usuario (usar email)
 app.get('/sub_accounts_by_user', async (req, res) => {
   const { email } = req.query;
-  
+
   if (!email) {
     return res.status(400).json({ message: 'Email es requerido.' });
   }
@@ -311,13 +311,13 @@ app.get('/sub_accounts_by_user', async (req, res) => {
   try {
     // Primero obtenemos el ID del usuario
     const [userResults] = await db.promise().query('SELECT id FROM users WHERE email = ?', [email]);
-    
+
     if (userResults.length === 0) {
       return res.status(404).json({ message: 'Usuario no encontrado.' });
     }
-    
+
     const userId = userResults[0].id;
-    
+
     // Luego obtenemos las subcuentas de ese usuario
     const [results] = await db.promise().query(`
       SELECT
@@ -342,7 +342,7 @@ app.get('/sub_accounts_by_user', async (req, res) => {
 // Endpoint para asociar números telefónicos a una subcuenta
 app.post('/associate_number_phone', async (req, res) => {
   const { sub_account_id, number_phone_id } = req.body;
-  
+
   if (!sub_account_id || !number_phone_id) {
     return res.status(400).json({ message: 'ID de subcuenta y ID de número telefónico son requeridos.' });
   }
@@ -350,18 +350,18 @@ app.post('/associate_number_phone', async (req, res) => {
   try {
     // Verificar que la subcuenta existe
     const [subAccountResults] = await db.promise().query('SELECT id FROM sub_accounts WHERE id = ?', [sub_account_id]);
-    
+
     if (subAccountResults.length === 0) {
       return res.status(404).json({ message: 'Subcuenta no encontrada.' });
     }
-    
+
     // Verificar que el número telefónico existe
     const [numberPhoneResults] = await db.promise().query('SELECT id FROM number_phones WHERE id = ?', [number_phone_id]);
-    
+
     if (numberPhoneResults.length === 0) {
       return res.status(404).json({ message: 'Número telefónico no encontrado.' });
     }
-    
+
     // Crear la asociación en la tabla correspondiente (asumiendo que existe una tabla para esta relación)
     const [result] = await db.promise().query(`
       INSERT INTO sub_account_number_phones (sub_account_id, number_phone_id, created_at, updated_at)
@@ -378,7 +378,7 @@ app.post('/associate_number_phone', async (req, res) => {
 // Endpoint para obtener números telefónicos asociados a una subcuenta
 app.get('/number_phones_by_sub_account', async (req, res) => {
   const { sub_account_id } = req.query;
-  
+
   if (!sub_account_id) {
     return res.status(400).json({ message: 'ID de subcuenta es requerido.' });
   }
@@ -404,6 +404,61 @@ app.get('/number_phones_by_sub_account', async (req, res) => {
   } catch (err) {
     console.error('Error al ejecutar la consulta:', err);
     res.status(500).json({ message: 'Error al obtener los números telefónicos de la subcuenta.' });
+  }
+});
+
+// Endpoint para asociar credenciales a una subcuenta
+app.post('/associate_credential', async (req, res) => {
+  const { sub_account_id, credentials_id } = req.body;
+
+  if (!sub_account_id || !credentials_id) {
+    return res.status(400).json({ message: 'ID de subcuenta y ID de credencial son requeridos.' });
+  }
+
+  try {
+    // Verificar que la subcuenta existe
+    const [subAccountResults] = await db.promise().query('SELECT id FROM sub_accounts WHERE id = ?', [sub_account_id]);
+
+    if (subAccountResults.length === 0) {
+      return res.status(404).json({ message: 'Subcuenta no encontrada.' });
+    }
+
+    // Verificar que la credencial existe
+    const [credentialResults] = await db.promise().query('SELECT id FROM credentials WHERE id = ?', [credentials_id]);
+
+    if (credentialResults.length === 0) {
+      return res.status(404).json({ message: 'Credencial no encontrada.' });
+    }
+
+    // Crear la asociación en la tabla sub_account_credentials
+    const [result] = await db.promise().query(`
+      INSERT INTO sub_account_credentials (sub_account_id, credentials_id, created_at, updated_at)
+      VALUES (?, ?, NOW(), NOW())
+    `, [sub_account_id, credentials_id]);
+
+    res.status(201).json({ message: 'Credencial asociada exitosamente a la subcuenta.' });
+  } catch (err) {
+    console.error('Error al ejecutar la consulta:', err);
+    res.status(500).json({ message: 'Error al asociar la credencial a la subcuenta.' });
+  }
+});
+
+app.delete('/cleanup-credentials', async (req, res) => {
+  try {
+    const [result] = await db.promise().query(`
+      DELETE FROM credentials
+      WHERE name = 'no'
+    `);
+
+    console.log(`Se eliminaron ${result.affectedRows} credenciales no deseadas.`);
+
+    res.status(200).json({
+      message: `Se eliminaron ${result.affectedRows} credenciales no deseadas.`,
+      affectedRows: result.affectedRows
+    });
+  } catch (err) {
+    console.error('Error al limpiar las credenciales:', err);
+    res.status(500).json({ message: 'Error al limpiar las credenciales.' });
   }
 });
 

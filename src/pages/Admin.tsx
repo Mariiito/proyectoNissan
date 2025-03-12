@@ -117,6 +117,8 @@ const Admin: React.FC = () => {
     { id: 12, usuario: 5, nombre: 'Pruebas', creado: '25/2/2025, 10:47:35', actualizado: '25/2/2025, 10:47:35' },
     { id: 13, usuario: 6, nombre: 'Posventa-Masivos', creado: '27/2/2025, 10:32:54', actualizado: '27/2/2025, 10:32:54' }
   ]);
+
+
   const [_listaNumerosTelefonicos] = useState<NumeroTelefonico[]>([
     { id: 7, nombre: 'Gasme Posventa', compania: 'Desconocido', numero: '+52 2711330327', creado: '27/2/2025, 10:28:44', actualizado: '27/2/2025, 10:45:22' },
     { id: 6, nombre: 'Prueba-Ramos', compania: 'Prueba', numero: '+52 6623254234', creado: '25/2/2025, 10:44:00', actualizado: '25/2/2025, 10:44:00' },
@@ -134,10 +136,11 @@ const Admin: React.FC = () => {
     { id: 1, nombre: 'Prueba Campaña', descripcion: '-', subcuenta: 1, credencialTwilio: 2, credencialGcp: 1, plantillas: 2, sheets: 1, creado: '11/2/2025, 10:33:44', actualizado: '27/2/2025, 18:04:05' }
   ]);
   const [userSubcuentas, setUserSubcuentas] = useState<SubcuentasData[]>([]);
-  const [listaCredenciales] = useState<Credencial[]>([
-    { id: 1, name: 'Twilio-Victor', json: '{\n  "key": "value"\n}', created_at: '20/2/2025, 17:38:18', updated_at: '21/2/2025, 10:08:57' },
-    { id: 2, name: 'Huerpi', json: '{\n  "key": "value"\n}', created_at: '20/2/2025, 17:26:57', updated_at: '20/2/2025, 17:26:57' },
-  ]);
+  // const [listaCredenciales] = useState<Credencial[]>([
+  //   { id: 1, name: 'Twilio-Victor', json: '{\n  "key": "value"\n}', created_at: '20/2/2025, 17:38:18', updated_at: '21/2/2025, 10:08:57' },
+  //   { id: 2, name: 'Huerpi', json: '{\n  "key": "value"\n}', created_at: '20/2/2025, 17:26:57', updated_at: '20/2/2025, 17:26:57' },
+  // ]);
+  const [credentialAssociations, setCredentialAssociations] = useState<{ credential_id: number }[]>([{ credential_id: 0 }]);
 
   const [phoneAssociations, setPhoneAssociations] = useState<{ number_phone: number }[]>([{ number_phone: 0 }]);
 
@@ -166,8 +169,8 @@ const Admin: React.FC = () => {
   const [userEmail, setUserEmail] = useState<string>('');
 
   //Nuevo Estado Asociar credenciales
-  const [credencialSeleccionada, setCredencialSeleccionada] = useState<number>(0);
-  const [CantidadCredenciales, setCantidadCredenciales] = useState<number>(0);
+  // const [credencialSeleccionada, setCredencialSeleccionada] = useState<number>(0);
+  // const [CantidadCredenciales, setCantidadCredenciales] = useState<number>(0);
 
   // Estado para el formulario de campaña
   const [campanaForm, setCampanaForm] = useState<CampanaForm>({
@@ -226,6 +229,27 @@ const Admin: React.FC = () => {
 
     fetchUserEmail();
   }, []);
+
+
+  useEffect(() => {
+    const fetchCredentials = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/credentials');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setCredentials(data);
+      } catch (error) {
+        console.error("Could not fetch credentials:", error);
+      }
+    };
+
+    if (tabActiva === 'asociar-credenciales' || tabActiva === 'credenciales-tab') {
+      fetchCredentials();
+    }
+  }, [tabActiva]);
+
 
   // Efecto para cargar subcuentas del usuario cuando cambia el email
   useEffect(() => {
@@ -513,6 +537,19 @@ const Admin: React.FC = () => {
     setPhoneAssociations([...phoneAssociations, { number_phone: 0 }]);
   };
 
+  // Functions to manage credential associations
+  const addCredentialAssociation = () => {
+    setCredentialAssociations([...credentialAssociations, { credential_id: 0 }]);
+  };
+
+  const removeCredentialAssociation = (index: number) => {
+    if (credentialAssociations.length > 1) {
+      const newAssociations = [...credentialAssociations];
+      newAssociations.splice(index, 1);
+      setCredentialAssociations(newAssociations);
+    }
+  };
+
   const removePhoneAssociation = (index: number) => {
     if (phoneAssociations.length > 1) {
       const newAssociations = [...phoneAssociations];
@@ -581,16 +618,72 @@ const Admin: React.FC = () => {
       setMensaje({ texto: '', tipo: '' });
     }, 5000);
   };
-  const handleAsociarCredenciales = () => {
-    alert(`Asociando la credencial ${credencialSeleccionada} a la subcuenta ${subcuentaSeleccionada}`);
-  };
-  const handleDecrementarCredenciales = () => {
-    setCantidadCredenciales(CantidadCredenciales > 0 ? CantidadCredenciales - 1 : 0);
-  };
+  const handleAssociateCredentials = async () => {
+    if (!subcuentaSeleccionada) {
+      setMensaje({
+        texto: 'Debe seleccionar una subcuenta',
+        tipo: 'error'
+      });
+      return;
+    }
 
-  const handleIncrementarCredenciales = () => {
-    setCantidadCredenciales(CantidadCredenciales + 1);
+    // Filtrar las asociaciones para quitar las que tengan una credencial inválida o no seleccionada (0)
+    const validAssociations = credentialAssociations.filter(assoc => assoc.credential_id !== 0);
+
+    if (validAssociations.length === 0) {
+      setMensaje({
+        texto: 'Debe seleccionar al menos una credencial',
+        tipo: 'error'
+      });
+      return;
+    }
+
+    try {
+      // Procesar cada asociación de credencial
+      for (const assoc of validAssociations) {
+        const response = await fetch('http://localhost:3001/associate_credential', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            sub_account_id: subcuentaSeleccionada,
+            credentials_id: assoc.credential_id
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error al asociar la credencial: ${response.statusText}`);
+        }
+      }
+
+      setMensaje({
+        texto: 'Credenciales asociadas exitosamente',
+        tipo: 'exito'
+      });
+
+      // Resetear el formulario
+      setCredentialAssociations([{ credential_id: 0 }]);
+    } catch (error) {
+      console.error('Error al asociar credenciales:', error);
+      setMensaje({
+        texto: 'Error al asociar las credenciales',
+        tipo: 'error'
+      });
+    }
+
+    // Ocultar el mensaje después de 5 segundos
+    setTimeout(() => {
+      setMensaje({ texto: '', tipo: '' });
+    }, 5000);
   };
+  // const handleDecrementarCredenciales = () => {
+  //   setCantidadCredenciales(CantidadCredenciales > 0 ? CantidadCredenciales - 1 : 0);
+  // };
+
+  // const handleIncrementarCredenciales = () => {
+  //   setCantidadCredenciales(CantidadCredenciales + 1);
+  // };
 
   // Handler para el formulario de campaña
   const handleCampanaFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -721,11 +814,11 @@ const Admin: React.FC = () => {
     </option>
   ));
 
-  const credencialesOptions = listaCredenciales.map(credencial => (
-    <option key={credencial.id} value={credencial.id} style={{ color: 'black' }}>
-      {credencial.name}
-    </option>
-  ));
+  // const credencialesOptions = credentials.map(credencial => (
+  //   <option key={credencial.id} value={credencial.id} style={{ color: 'black' }}>
+  //     {credencial.name}
+  //   </option>
+  // ));
 
   // Obtenemos las opciones de campañas (necesario para el select de campañas)
   const campanasOptions = campanas.map(campana => (
@@ -1232,25 +1325,28 @@ const Admin: React.FC = () => {
         {tabActiva === 'asociar-credenciales' && (
           <div className="max-w-3xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Asociar Credenciales</h2>
+            <hr className="border-t-2 border-gray-200 dark:border-gray-700 mb-6" />
 
             {/* Usuario */}
             <div className="mb-6">
               <label className="block font-medium text-gray-700 mb-1">Usuario</label>
-              <input
-                type="email"
-                placeholder="Correo"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded mb-2 text-black"
-              />
-              <div className="flex gap-2">
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="email"
+                  placeholder="Correo"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded text-black"
+                />
                 <button
                   className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black"
                   onClick={handleBuscarUsuario}
                 >
                   Buscar
                 </button>
-                <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Lista de usuarios</button>
+                <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">
+                  Lista de usuarios
+                </button>
               </div>
             </div>
 
@@ -1262,53 +1358,77 @@ const Admin: React.FC = () => {
                 onChange={(e) => setSubcuentaSeleccionada(Number(e.target.value))}
                 className="w-full p-2 border border-gray-300 rounded"
                 style={selectStyle}
+                disabled={userSubcuentas.length === 0}
               >
                 <option value={0} style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar compañía</option>
-                {subcuentasOptions}
-              </select>
-            </div>
-            {/* Credenciales */}
-            <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Credenciales</label>
-              <select
-                value={credencialSeleccionada}
-                onChange={(e) => setCredencialSeleccionada(Number(e.target.value))}
-                className="w-full p-2 border border-gray-300 rounded"
-                style={selectStyle}
-              >
-                <option value={0} style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar credencial</option>
-                {credencialesOptions}
+                {userSubcuentas.map(subcuenta => (
+                  <option
+                    key={subcuenta.id}
+                    value={subcuenta.id}
+                    style={{ color: 'black', fontWeight: 'bold' }}
+                  >
+                    {subcuenta.Nombre}
+                  </option>
+                ))}
               </select>
             </div>
 
-            {/* Cantidad de Credenciales */}
-            <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Cantidad de Credenciales</label>
-              <div className="flex items-center">
-                <input
-                  type="number"
-                  value={CantidadCredenciales}
-                  readOnly
-                  className="w-full p-2 border border-gray-300 rounded text-black"
-                />
-                <button
-                  className="px-4 py-2 mx-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black"
-                  onClick={handleIncrementarCredenciales}
-                >
-                  +
-                </button>
-                <button
-                  className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black"
-                  onClick={handleDecrementarCredenciales}
-                >
-                  -
-                </button>
+            <hr className="border-t-2 border-gray-200 dark:border-gray-700 mb-6" />
+            <h3 className="text-xl font-semibold mb-4 text-gray-600">Credenciales</h3>
+
+            {/* Dynamic credential associations */}
+            {credentialAssociations.map((association, index) => (
+              <div key={index} className="flex gap-3 mb-4 overflow-auto">
+                <div className="flex-1">
+                  <label className="block font-medium text-gray-700 mb-1">Credencial</label>
+                  <select
+                    value={association.credential_id}
+                    onChange={(e) => {
+                      const newAssociations = [...credentialAssociations];
+                      newAssociations[index].credential_id = Number(e.target.value);
+                      setCredentialAssociations(newAssociations);
+                    }}
+                    className="w-full p-2 border border-gray-300 rounded"
+                    style={selectStyle}
+                    disabled={subcuentaSeleccionada === 0}
+                  >
+                    <option value={0} style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar credencial</option>
+                    {credentials
+                      .filter(credencial => credencial.name.toLowerCase() !== 'no') // Filtrar credenciales con nombre "no"
+                      .map(credencial => (
+                        <option key={credencial.id} value={credencial.id} style={{ color: 'black' }}>
+                          {credencial.name}
+                        </option>
+                      ))
+                    }
+                  </select>
+                </div>
+                <div className="flex items-end mb-1">
+                  <div className="flex gap-1">
+                    <button
+                      className="px-2 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black"
+                      onClick={addCredentialAssociation}
+                      disabled={subcuentaSeleccionada === 0}
+                    >
+                      <span className="text-xl">+</span>
+                    </button>
+                    <button
+                      className="px-2 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black"
+                      onClick={() => removeCredentialAssociation(index)}
+                      disabled={subcuentaSeleccionada === 0 || credentialAssociations.length <= 1}
+                    >
+                      <span className="text-xl">-</span>
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
+            ))}
+
+            <hr className="border-t-2 border-gray-200 dark:border-gray-700 mb-6" />
             <div className="flex justify-end">
               <button
                 className="flex items-center gap-2 px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
-                onClick={handleAsociarCredenciales}
+                onClick={handleAssociateCredentials}
               >
                 Asociar credenciales <FaPencilAlt />
               </button>
