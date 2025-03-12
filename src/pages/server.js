@@ -136,33 +136,28 @@ app.post('/sub_accounts', async (req, res) => {
 app.get('/campaigns', async (req, res) => {
   try {
     const [results, fields] = await db.promise().query(`
-      SELECT
-        C.id AS ID,
-        C.name AS Nombre,
-        C.description AS Descripción,
-        SA.name AS Subcuenta,
-        CTw.name AS CredencialTwilio,
-        CGcp.name AS CredencialGcp,
-        COUNT(DISTINCT T.id) AS Plantillas,
-        COUNT(DISTINCT S.id) AS Sheets,
-        DATE_FORMAT(C.created_at, '%d/%m/%Y, %H:%i:%s') AS Creado,
-        DATE_FORMAT(C.updated_at, '%d/%m/%Y, %H:%i:%s') AS Actualizado
-      FROM
-          Campaign AS C
-      LEFT JOIN
-          sub_accounts AS SA ON C.sub_account_id = SA.id
-      LEFT JOIN
-          credentials AS CTw ON C.credential_template_id = CTw.id
-      LEFT JOIN
-          credentials AS CGcp ON C.credential_sheet_id = CGcp.id
-      LEFT JOIN
-          Templates AS T ON C.id = T.campaign_id
-      LEFT JOIN
-          Sheets AS S ON C.id = S.campaign_id
-      GROUP BY
-          C.id, C.name, C.description, SA.name, CTw.name, CGcp.name, C.created_at, C.updated_at
-      ORDER BY
-          C.id;
+      SELECT 
+        c.id AS ID,
+        c.name AS Nombre,
+        c.description AS Descripción,
+        c.sub_account_id AS Subcuenta,
+        COUNT(DISTINCT t.id) AS CredencialTwilio,
+        COUNT(DISTINCT s.id) AS CredencialGcp,
+        COALESCE(COUNT(DISTINCT t.id), 0) AS Plantillas,
+        COALESCE(COUNT(DISTINCT s.id), 0) AS Sheets,
+        DATE_FORMAT(c.created_at, '%d/%m/%Y, %H:%i:%s') AS Creado,
+        DATE_FORMAT(c.updated_at, '%d/%m/%Y, %H:%i:%s') AS Actualizado,
+        'Editar' AS Acciones
+      FROM 
+        Campaign c
+      LEFT JOIN 
+        Templates t ON c.id = t.campaign_id
+      LEFT JOIN 
+        Sheets s ON c.id = s.campaign_id
+      GROUP BY 
+        c.id, c.name, c.description, c.sub_account_id, c.created_at, c.updated_at
+      ORDER BY 
+        c.id DESC;
     `);
 
     res.status(200).json(results);

@@ -272,6 +272,7 @@ const Admin: React.FC = () => {
   }, [email]);
 
   // Función para obtener las campañas desde el backend
+  // Función para obtener las campañas desde el backend
   const fetchCampaigns = async () => {
     try {
       const response = await fetch('http://localhost:3001/campaigns');
