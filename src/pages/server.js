@@ -519,7 +519,7 @@ app.post('/campaigns', async (req, res) => {
       VALUES (?, ?, ?, ?, ?, NOW(), NOW())
     `, [name, description, sub_account_id, credential_sheet_id, credential_template_id]);
 
-    res.status(201).json({ 
+    res.status(201).json({
       message: 'Campaña creada exitosamente.',
       id: result.insertId
     });
@@ -551,7 +551,7 @@ app.get('/template_fields/:template_id', async (req, res) => {
     // Parsear associated_fields que es un objeto JSON almacenado como string
     const template = results[0];
     let associatedFields = {};
-    
+
     try {
       if (template.associated_fields) {
         associatedFields = JSON.parse(template.associated_fields);
@@ -616,14 +616,14 @@ app.get('/sheet_columns/:sheet_id', async (req, res) => {
 
 // Endpoint para asociar campos entre plantillas y hojas
 app.post('/associate_fields', async (req, res) => {
-  const { 
-    campaign_id, 
-    sheet_id, 
+  const {
+    campaign_id,
+    sheet_id,
     field_mappings,
     template_id,
     field_blacklist,
     field_status,
-    field_contact 
+    field_contact
   } = req.body;
 
   if (!campaign_id || !sheet_id || !template_id) {
@@ -644,7 +644,7 @@ app.post('/associate_fields', async (req, res) => {
     // 2. Actualizar la tabla Templates con el mapeo de campos
     // Convertir el objeto field_mappings a JSON string
     const associated_fields_json = JSON.stringify(field_mappings);
-    
+
     await db.promise().query(`
       UPDATE Templates
       SET associated_fields = ?,
@@ -652,7 +652,7 @@ app.post('/associate_fields', async (req, res) => {
       WHERE id = ? AND campaign_id = ?
     `, [associated_fields_json, template_id, campaign_id]);
 
-    res.status(200).json({ 
+    res.status(200).json({
       message: 'Campos asociados exitosamente',
       updated: {
         sheet: { id: sheet_id, field_blacklist, field_status, field_contact },
@@ -709,6 +709,132 @@ app.get('/sheets_by_campaign/:campaign_id', async (req, res) => {
   }
 });
 
+
+// Endpoint para actualizar un usuario por su ID
+app.put('/users/:id', async (req, res) => {
+  const userId = req.params.id;
+  const { username, email, first_name, last_name, is_superuser, is_active } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ message: 'ID de usuario es requerido.' });
+  }
+
+  try {
+    // Verificar que el usuario existe
+    const [userResults] = await db.promise().query('SELECT id FROM users WHERE id = ?', [userId]);
+
+    if (userResults.length === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado.' });
+    }
+
+    // Actualizar los datos del usuario
+    const [result] = await db.promise().query(`
+      UPDATE users
+      SET 
+        username = ?,
+        email = ?,
+        first_name = ?,
+        last_name = ?,
+        is_superuser = ?,
+        is_active = ?
+      WHERE id = ?
+    `, [username, email, first_name, last_name, is_superuser, is_active, userId]);
+
+    if (result.affectedRows === 0) {
+      return res.status(500).json({ message: 'No se pudo actualizar el usuario.' });
+    }
+
+    res.status(200).json({
+      message: 'Usuario actualizado exitosamente.',
+      userId: userId
+    });
+  } catch (err) {
+    console.error('Error al actualizar el usuario:', err);
+    res.status(500).json({ message: 'Error al actualizar el usuario.' });
+  }
+});
+
+app.put('/sub_accounts/:id', async (req, res) => {
+  const subcuentaId = req.params.id;
+  const { nombre } = req.body;  // Solo usar el nombre, ignorar el usuario
+
+  if (!subcuentaId) {
+    return res.status(400).json({ message: 'ID de subcuenta es requerido.' });
+  }
+
+  try {
+    // Verificar que la subcuenta existe
+    const [subcuentaResults] = await db.promise().query('SELECT id FROM sub_accounts WHERE id = ?', [subcuentaId]);
+
+    if (subcuentaResults.length === 0) {
+      return res.status(404).json({ message: 'Subcuenta no encontrada.' });
+    }
+
+    // Actualizar solo el nombre de la subcuenta
+    const [result] = await db.promise().query(`
+      UPDATE sub_accounts
+      SET 
+        name = ?,
+        updated_at = NOW()
+      WHERE id = ?
+    `, [nombre, subcuentaId]);
+
+    if (result.affectedRows === 0) {
+      return res.status(500).json({ message: 'No se pudo actualizar la subcuenta.' });
+    }
+
+    res.status(200).json({
+      message: 'Subcuenta actualizada exitosamente.',
+      subcuentaId: subcuentaId
+    });
+  } catch (err) {
+    console.error('Error al actualizar la subcuenta:', err);
+    res.status(500).json({ message: 'Error al actualizar la subcuenta.' });
+  }
+});
+
+
+// Endpoint para actualizar números telefónicos
+app.put('/number_phones/:id', async (req, res) => {
+  const phoneId = req.params.id;
+  const { name, company, number } = req.body;
+
+  if (!phoneId) {
+    return res.status(400).json({ message: 'ID de número telefónico es requerido.' });
+  }
+
+  try {
+    // Verificar que el número telefónico existe
+    const [phoneResults] = await db.promise().query('SELECT id FROM number_phones WHERE id = ?', [phoneId]);
+
+    if (phoneResults.length === 0) {
+      return res.status(404).json({ message: 'Número telefónico no encontrado.' });
+    }
+
+    // Actualizar los datos del número telefónico
+    const [result] = await db.promise().query(`
+      UPDATE number_phones
+      SET 
+        name = ?,
+        company = ?,
+        number = ?,
+        updated_at = NOW()
+      WHERE id = ?
+    `, [name, company, number, phoneId]);
+
+    if (result.affectedRows === 0) {
+      return res.status(500).json({ message: 'No se pudo actualizar el número telefónico.' });
+    }
+
+    res.status(200).json({
+      message: 'Número telefónico actualizado exitosamente.',
+      phoneId: phoneId
+    });
+  } catch (err) {
+    console.error('Error al actualizar el número telefónico:', err);
+    res.status(500).json({ message: 'Error al actualizar el número telefónico.' });
+  }
+});
 // Esta debe ser la última línea de tu archivo, después de todos los endpoints
 app.listen(port, () => {
   console.log(`Servidor backend escuchando en el puerto ${port}`);

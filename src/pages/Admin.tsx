@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FaPencilAlt, FaSignOutAlt } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import UserEditModal from './UserEditModal';
+import SubcuentaEditModal from './SubcuentaEditModal';
+import NumeroTelefonicoEditModal from './NumeroTelefonicoEditModal';
 
 // Interfaces
 interface Usuario {
@@ -17,10 +20,10 @@ interface Usuario {
 
 interface Subcuenta {
   id: number;
-  usuario: number;
-  nombre: string;
-  creado: string;
-  actualizado: string;
+  usuario: number;  // Cambiar de user_id a usuario
+  nombre: string;   // Cambiar de name a nombre
+  creado: string;   // Cambiar de created_at a creado
+  actualizado: string; // Cambiar de updated_at a actualizado
 }
 
 interface Campana {
@@ -120,11 +123,9 @@ const Admin: React.FC = () => {
     { id: 13, usuario: 6, nombre: 'Posventa-Masivos', creado: '27/2/2025, 10:32:54', actualizado: '27/2/2025, 10:32:54' }
   ]);
 
-
   const [_listaNumerosTelefonicos] = useState<NumeroTelefonico[]>([
     { id: 7, nombre: 'Gasme Posventa', compania: 'Desconocido', numero: '+52 2711330327', creado: '27/2/2025, 10:28:44', actualizado: '27/2/2025, 10:45:22' },
     { id: 6, nombre: 'Prueba-Ramos', compania: 'Prueba', numero: '+52 6623254234', creado: '25/2/2025, 10:44:00', actualizado: '25/2/2025, 10:44:00' },
-
     { id: 5, nombre: 'Grupo Huerpel Posventa', compania: 'Desconocido', numero: '+52 0', creado: '20/2/2025, 17:55:42', actualizado: '21/2/2025, 10:11:56' },
     { id: 4, nombre: 'No', compania: 'Gerente BDC Posventa', numero: '+52 0', creado: '20/2/2025, 17:29:03', actualizado: '21/2/2025, 10:11:51' },
     { id: 3, nombre: 'Huerpel-wap', compania: 'Gerente BDC Posventa', numero: '+52 2211830913', creado: '20/2/2025, 17:05:20', actualizado: '21/2/2025, 10:12:06' },
@@ -138,9 +139,16 @@ const Admin: React.FC = () => {
     { id: 1, nombre: 'Prueba Campaña', descripcion: '-', subcuenta: 1, credencialTwilio: 2, credencialGcp: 1, plantillas: 2, sheets: 1, creado: '11/2/2025, 10:33:44', actualizado: '27/2/2025, 18:04:05' }
   ]);
   const [userSubcuentas, setUserSubcuentas] = useState<SubcuentasData[]>([]);
-
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<Usuario | null>(null);
   const [credentialAssociations, setCredentialAssociations] = useState<{ credential_id: number }[]>([{ credential_id: 0 }]);
 
+  const [editNumeroTelefonicoModalOpen, setEditNumeroTelefonicoModalOpen] = useState(false);
+  const [selectedNumeroTelefonico, setSelectedNumeroTelefonico] = useState<NumeroTelefonico | null>(null);
+
+  const [editSubcuentaModalOpen, setEditSubcuentaModalOpen] = useState(false);
+  const [selectedSubcuenta, setSelectedSubcuenta] = useState<Subcuenta | null>(null);
+  // const [usuariosSelect, setUsuariosSelect] = useState<{ id: number; email: string }[]>([]);
   const [phoneAssociations, setPhoneAssociations] = useState<{ number_phone: number }[]>([{ number_phone: 0 }]);
 
   const [tabActiva, setTabActiva] = useState('usuarios');
@@ -164,8 +172,7 @@ const Admin: React.FC = () => {
     tipo: ''
   });
 
-
-
+  
   // Estado para el formulario de campaña
   const [campanaForm, setCampanaForm] = useState<CampanaForm>({
     nombre: '',
@@ -429,6 +436,207 @@ const Admin: React.FC = () => {
       });
     }
 
+    setTimeout(() => {
+      setMensaje({ texto: '', tipo: '' });
+    }, 5000);
+  };
+
+  const handleSaveUser = async (updatedUser: Usuario) => {
+    try {
+      const response = await fetch(`http://localhost:3001/users/${updatedUser.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedUser),
+      });
+
+      if (response.ok) {
+        setMensaje({
+          texto: 'Usuario actualizado exitosamente',
+          tipo: 'exito'
+        });
+
+        // Actualiza la lista de usuarios
+        const updatedUsers = usuarios.map(user =>
+          user.id === updatedUser.id ? updatedUser : user
+        );
+        setUsuarios(updatedUsers);
+
+        // Cierra el modal
+        handleCloseModal();
+      } else {
+        const errorData = await response.json();
+        setMensaje({
+          texto: `Error al actualizar el usuario: ${errorData.message || 'Error desconocido'}`,
+          tipo: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error al conectar con el servidor:', error);
+      setMensaje({
+        texto: 'Error al conectar con el servidor',
+        tipo: 'error'
+      });
+    }
+
+    // Ocultar el mensaje después de 5 segundos
+    setTimeout(() => {
+      setMensaje({ texto: '', tipo: '' });
+    }, 5000);
+  };
+
+
+  function handleEditNumeroTelefonicoClick(numeroTelefonico: NumeroTelefonico): void {
+    setSelectedNumeroTelefonico(numeroTelefonico);
+    setEditNumeroTelefonicoModalOpen(true);
+  }
+
+  const handleCloseNumeroTelefonicoModal = () => {
+    setEditNumeroTelefonicoModalOpen(false);
+    setSelectedNumeroTelefonico(null);
+  };
+
+
+
+  const handleSaveNumeroTelefonico = async (updatedNumeroTelefonico: NumeroTelefonico) => {
+    try {
+      // Adaptar el objeto para coincidir con lo que espera el backend
+      const dataToSend = {
+        id: updatedNumeroTelefonico.id,
+        name: updatedNumeroTelefonico.nombre,
+        company: updatedNumeroTelefonico.compania,
+        number: updatedNumeroTelefonico.numero
+      };
+
+      const response = await fetch(`http://localhost:3001/number_phones/${updatedNumeroTelefonico.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dataToSend),
+      });
+
+      if (response.ok) {
+        setMensaje({
+          texto: 'Número telefónico actualizado exitosamente',
+          tipo: 'exito'
+        });
+
+        // Actualiza la lista de números telefónicos
+        if (tabActiva === 'numeros-tab') {
+          const fetchNumberPhones = async () => {
+            try {
+              const response = await fetch('http://localhost:3001/number_phones');
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              const data = await response.json();
+              setNumberPhonesData(data);
+            } catch (error) {
+              console.error("Could not fetch number phones:", error);
+            }
+          };
+
+          fetchNumberPhones();
+        }
+
+        // Cierra el modal
+        handleCloseNumeroTelefonicoModal();
+      } else {
+        const errorData = await response.json();
+        setMensaje({
+          texto: `Error al actualizar el número telefónico: ${errorData.message || 'Error desconocido'}`,
+          tipo: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error al conectar con el servidor:', error);
+      setMensaje({
+        texto: 'Error al conectar con el servidor',
+        tipo: 'error'
+      });
+    }
+
+    // Ocultar el mensaje después de 5 segundos
+    setTimeout(() => {
+      setMensaje({ texto: '', tipo: '' });
+    }, 5000);
+  };
+
+
+
+  function handleEditSubcuentaClick(subcuenta: Subcuenta): void {
+    setSelectedSubcuenta(subcuenta);
+    setEditSubcuentaModalOpen(true);
+    // loadUsuariosSelect();
+  }
+
+  const handleCloseSubcuentaModal = () => {
+    setEditSubcuentaModalOpen(false);
+    setSelectedSubcuenta(null);
+  };
+
+  const handleSaveSubcuenta = async (updatedSubcuenta: Subcuenta) => {
+    try {
+      // Adaptar el objeto para coincidir con lo que espera el backend
+      const dataToSend = {
+        id: updatedSubcuenta.id,
+        nombre: updatedSubcuenta.nombre,  // Solo enviar el nombre
+      };
+
+      const response = await fetch(`http://localhost:3001/sub_accounts/${updatedSubcuenta.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dataToSend),
+      });
+
+      // resto del código...
+
+      if (response.ok) {
+        setMensaje({
+          texto: 'Subcuenta actualizada exitosamente',
+          tipo: 'exito'
+        });
+
+        // Actualiza la lista de subcuentas
+        if (tabActiva === 'subcuentas-tab') {
+          const fetchSubcuentas = async () => {
+            try {
+              const response = await fetch('http://localhost:3001/sub_accounts');
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              const data = await response.json();
+              setSubcuentasData(data);
+            } catch (error) {
+              console.error("Could not fetch subcuentas:", error);
+            }
+          };
+
+          fetchSubcuentas();
+        }
+
+        // Cierra el modal
+        handleCloseSubcuentaModal();
+      } else {
+        const errorData = await response.json();
+        setMensaje({
+          texto: `Error al actualizar la subcuenta: ${errorData.message || 'Error desconocido'}`,
+          tipo: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error al conectar con el servidor:', error);
+      setMensaje({
+        texto: 'Error al conectar con el servidor',
+        tipo: 'error'
+      });
+    }
+
+    // Ocultar el mensaje después de 5 segundos
     setTimeout(() => {
       setMensaje({ texto: '', tipo: '' });
     }, 5000);
@@ -952,6 +1160,17 @@ const Admin: React.FC = () => {
     fontWeight: 'bold' as 'bold',
     backgroundColor: 'white'
   };
+
+  function handleEditClick(usuario: Usuario): void {
+    setSelectedUser(usuario);
+    setEditModalOpen(true);
+  }
+
+  const handleCloseModal = () => {
+    setEditModalOpen(false);
+    setSelectedUser(null);
+  };
+
   // Renderizado
   return (
     <div className="flex flex-col h-screen bg-gray-100">
@@ -1055,7 +1274,12 @@ const Admin: React.FC = () => {
                     <td className="py-3 px-4 text-black">{usuario.date_joined}</td>
                     <td className="py-3 px-4 text-black">{usuario.last_login}</td>
                     <td className="py-3 px-4">
-                      <button className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Editar</button>
+                      <button
+                        className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                        onClick={() => handleEditClick(usuario)}
+                      >
+                        Editar
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -1118,7 +1342,6 @@ const Admin: React.FC = () => {
         )}
         {tabActiva === 'numeros-tab' && (
           <div className="overflow-x-auto">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">Listado de números telefónicos</h2>
             <table className="min-w-full bg-white">
               <thead className="bg-gray-100">
                 <tr>
@@ -1141,7 +1364,12 @@ const Admin: React.FC = () => {
                     <td className="py-3 px-4 text-black">{numero.creado}</td>
                     <td className="py-3 px-4 text-black">{numero.actualizado}</td>
                     <td className="py-3 px-4">
-                      <button className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Editar</button>
+                      <button
+                        className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                        onClick={() => handleEditNumeroTelefonicoClick(numero)}
+                      >
+                        Editar
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -1180,16 +1408,7 @@ const Admin: React.FC = () => {
         {tabActiva === 'subcuentas-tab' && (
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="py-3 px-4 text-left font-medium text-black">ID</th>
-                  <th className="py-3 px-4 text-left font-medium text-black">Usuario</th>
-                  <th className="py-3 px-4 text-left font-medium text-black">Nombre</th>
-                  <th className="py-3 px-4 text-left font-medium text-black">Creado</th>
-                  <th className="py-3 px-4 text-left font-medium text-black">Actualizado</th>
-                  <th className="py-3 px-4 text-left font-medium text-black">Acciones</th>
-                </tr>
-              </thead>
+              {/* ... */}
               <tbody className="divide-y divide-gray-200">
                 {subcuentasData.map(subcuenta => (
                   <tr key={subcuenta.id} className="hover:bg-gray-50">
@@ -1199,16 +1418,24 @@ const Admin: React.FC = () => {
                     <td className="py-3 px-4 text-black">{subcuenta.Creado}</td>
                     <td className="py-3 px-4 text-black">{subcuenta.Actualizado}</td>
                     <td className="py-3 px-4">
-                      <button className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Editar</button>
+                      <button
+                        className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                        onClick={() => handleEditSubcuentaClick({
+                          id: subcuenta.id,
+                          nombre: subcuenta.Nombre,     // Cambiado de name a nombre
+                          usuario: subcuenta.Usuario,   // Cambiado de user_id a usuario
+                          creado: subcuenta.Creado,     // Cambiado de created_at a creado
+                          actualizado: subcuenta.Actualizado  // Cambiado de updated_at a actualizado
+                        })}
+                      >
+                        Editar
+                      </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <div className="flex justify-end mt-4 gap-2">
-              <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Anterior</button>
-              <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Siguiente</button>
-            </div>
+            {/* ... */}
           </div>
         )}
         {tabActiva === 'campanas' && (
@@ -1781,6 +2008,33 @@ const Admin: React.FC = () => {
         <div>2025</div>
         <div>AUTO INSIGHTS</div>
       </footer>
+      {editModalOpen && (
+        <UserEditModal
+          usuario={selectedUser}
+          onClose={handleCloseModal}
+          onSave={handleSaveUser}
+          isOpen={editModalOpen}
+        />
+      )}
+
+      {editNumeroTelefonicoModalOpen && (
+        <NumeroTelefonicoEditModal
+          numeroTelefonico={selectedNumeroTelefonico}
+          onClose={handleCloseNumeroTelefonicoModal}
+          onSave={handleSaveNumeroTelefonico}
+          isOpen={editNumeroTelefonicoModalOpen}
+        />
+      )}
+
+      {editSubcuentaModalOpen && (
+        <SubcuentaEditModal
+          subcuenta={selectedSubcuenta}
+          onClose={handleCloseSubcuentaModal}
+          onSave={handleSaveSubcuenta}
+          isOpen={editSubcuentaModalOpen}
+        />
+      )}
+
     </div>
   );
 };
