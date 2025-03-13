@@ -178,7 +178,33 @@ app.get('/number_phones', async (req, res) => {
           DATE_FORMAT(created_at, '%d/%m/%Y, %H:%i:%s') AS creado,
           DATE_FORMAT(updated_at, '%d/%m/%Y, %H:%i:%s') AS actualizado
       FROM
-          number_phones;
+          number_phones
+      ORDER BY
+          id DESC;
+    `);
+
+    res.status(200).json(results);
+  } catch (err) {
+    console.error('Error al ejecutar la consulta:', err);
+    res.status(500).json({ message: 'Error al obtener los números telefónicos.' });
+  }
+});
+
+
+app.get('/number_phones_formatted', async (req, res) => {
+  try {
+    const [results, fields] = await db.promise().query(`
+      SELECT
+          id,
+          name AS nombre,
+          company AS compania,
+          CONCAT('+52 ', number) AS numero,
+          DATE_FORMAT(created_at, '%d/%m/%Y, %H:%i:%s') AS creado,
+          DATE_FORMAT(updated_at, '%d/%m/%Y, %H:%i:%s') AS actualizado
+      FROM
+          number_phones
+      ORDER BY
+          id DESC;
     `);
 
     res.status(200).json(results);
@@ -454,6 +480,232 @@ app.delete('/cleanup-credentials', async (req, res) => {
   } catch (err) {
     console.error('Error al limpiar las credenciales:', err);
     res.status(500).json({ message: 'Error al limpiar las credenciales.' });
+  }
+});
+
+// Endpoint para crear campañas
+// Endpoint para crear campañas
+app.post('/campaigns', async (req, res) => {
+  const { name, description, sub_account_id, credential_sheet_id, credential_template_id } = req.body;
+
+  if (!name || !sub_account_id || !credential_sheet_id || !credential_template_id) {
+    return res.status(400).json({ message: 'Nombre, subcuenta y credenciales son requeridos.' });
+  }
+
+  try {
+    // Verificar que la subcuenta existe
+    const [subAccountResults] = await db.promise().query('SELECT id FROM sub_accounts WHERE id = ?', [sub_account_id]);
+
+    if (subAccountResults.length === 0) {
+      return res.status(404).json({ message: 'Subcuenta no encontrada.' });
+    }
+
+    // Verificar que las credenciales existen
+    const [sheetCredentialResults] = await db.promise().query('SELECT id FROM credentials WHERE id = ?', [credential_sheet_id]);
+
+    if (sheetCredentialResults.length === 0) {
+      return res.status(404).json({ message: 'Credencial para Google Sheets no encontrada.' });
+    }
+
+    const [templateCredentialResults] = await db.promise().query('SELECT id FROM credentials WHERE id = ?', [credential_template_id]);
+
+    if (templateCredentialResults.length === 0) {
+      return res.status(404).json({ message: 'Credencial para mensajes no encontrada.' });
+    }
+
+    // Insertar la nueva campaña
+    const [result] = await db.promise().query(`
+      INSERT INTO Campaign (name, description, sub_account_id, credential_sheet_id, credential_template_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+    `, [name, description, sub_account_id, credential_sheet_id, credential_template_id]);
+
+    res.status(201).json({ 
+      message: 'Campaña creada exitosamente.',
+      id: result.insertId
+    });
+  } catch (err) {
+    console.error('Error al crear la campaña:', err);
+    res.status(500).json({ message: 'Error al crear la campaña.' });
+  }
+});
+
+// Endpoint para obtener los campos de una plantilla específica
+app.get('/template_fields/:template_id', async (req, res) => {
+  const { template_id } = req.params;
+
+  if (!template_id) {
+    return res.status(400).json({ message: 'ID de plantilla es requerido' });
+  }
+
+  try {
+    const [results] = await db.promise().query(`
+      SELECT id, name, associated_fields, sid
+      FROM Templates
+      WHERE id = ?
+    `, [template_id]);
+
+    if (results.length === 0) {
+      return res.status(404).json({ message: 'Plantilla no encontrada' });
+    }
+
+    // Parsear associated_fields que es un objeto JSON almacenado como string
+    const template = results[0];
+    let associatedFields = {};
+    
+    try {
+      if (template.associated_fields) {
+        associatedFields = JSON.parse(template.associated_fields);
+      }
+    } catch (parseError) {
+      console.error('Error al parsear associated_fields:', parseError);
+    }
+
+    res.status(200).json({
+      id: template.id,
+      name: template.name,
+      sid: template.sid,
+      associated_fields: associatedFields
+    });
+  } catch (err) {
+    console.error('Error al obtener los campos de la plantilla:', err);
+    res.status(500).json({ message: 'Error al obtener los campos de la plantilla' });
+  }
+});
+
+// Endpoint para obtener las columnas de una hoja de Google Sheets
+app.get('/sheet_columns/:sheet_id', async (req, res) => {
+  const { sheet_id } = req.params;
+
+  if (!sheet_id) {
+    return res.status(400).json({ message: 'ID de hoja es requerido' });
+  }
+
+  try {
+    const [results] = await db.promise().query(`
+      SELECT id, sheet_id, sheet_sheet, sheet_range, field_blacklist, field_status, field_contact
+      FROM Sheets
+      WHERE id = ?
+    `, [sheet_id]);
+
+    if (results.length === 0) {
+      return res.status(404).json({ message: 'Hoja no encontrada' });
+    }
+
+    // Aquí normalmente conectarías con la API de Google Sheets para obtener las columnas
+    // Por simplicidad, retornaremos algunos campos fijos basados en los datos que vimos
+    const defaultColumns = [
+      'Lista_Negra',
+      'WhastApp',
+      'Celular',
+      'Nombre del Asegurado',
+      'Nombre de la Aseguradora',
+      'Orden',
+      'Unidad',
+      'No. de Serie'
+    ];
+
+    res.status(200).json({
+      sheet: results[0],
+      columns: defaultColumns
+    });
+  } catch (err) {
+    console.error('Error al obtener las columnas de la hoja:', err);
+    res.status(500).json({ message: 'Error al obtener las columnas de la hoja' });
+  }
+});
+
+// Endpoint para asociar campos entre plantillas y hojas
+app.post('/associate_fields', async (req, res) => {
+  const { 
+    campaign_id, 
+    sheet_id, 
+    field_mappings,
+    template_id,
+    field_blacklist,
+    field_status,
+    field_contact 
+  } = req.body;
+
+  if (!campaign_id || !sheet_id || !template_id) {
+    return res.status(400).json({ message: 'ID de campaña, ID de hoja y ID de plantilla son requeridos' });
+  }
+
+  try {
+    // 1. Actualizar la tabla Sheets con la información de los campos
+    await db.promise().query(`
+      UPDATE Sheets
+      SET field_blacklist = ?,
+          field_status = ?,
+          field_contact = ?,
+          updated_at = NOW()
+      WHERE id = ? AND campaign_id = ?
+    `, [field_blacklist, field_status, field_contact, sheet_id, campaign_id]);
+
+    // 2. Actualizar la tabla Templates con el mapeo de campos
+    // Convertir el objeto field_mappings a JSON string
+    const associated_fields_json = JSON.stringify(field_mappings);
+    
+    await db.promise().query(`
+      UPDATE Templates
+      SET associated_fields = ?,
+          updated_at = NOW()
+      WHERE id = ? AND campaign_id = ?
+    `, [associated_fields_json, template_id, campaign_id]);
+
+    res.status(200).json({ 
+      message: 'Campos asociados exitosamente',
+      updated: {
+        sheet: { id: sheet_id, field_blacklist, field_status, field_contact },
+        template: { id: template_id, associated_fields: field_mappings }
+      }
+    });
+  } catch (err) {
+    console.error('Error al asociar los campos:', err);
+    res.status(500).json({ message: 'Error al asociar los campos' });
+  }
+});
+
+// Endpoint para obtener las plantillas disponibles para una campaña
+app.get('/templates_by_campaign/:campaign_id', async (req, res) => {
+  const { campaign_id } = req.params;
+
+  if (!campaign_id) {
+    return res.status(400).json({ message: 'ID de campaña es requerido' });
+  }
+
+  try {
+    const [results] = await db.promise().query(`
+      SELECT id, name, associated_fields, sid
+      FROM Templates
+      WHERE campaign_id = ?
+    `, [campaign_id]);
+
+    res.status(200).json(results);
+  } catch (err) {
+    console.error('Error al obtener las plantillas:', err);
+    res.status(500).json({ message: 'Error al obtener las plantillas de la campaña' });
+  }
+});
+
+// Endpoint para obtener las hojas asociadas a una campaña
+app.get('/sheets_by_campaign/:campaign_id', async (req, res) => {
+  const { campaign_id } = req.params;
+
+  if (!campaign_id) {
+    return res.status(400).json({ message: 'ID de campaña es requerido' });
+  }
+
+  try {
+    const [results] = await db.promise().query(`
+      SELECT id, sheet_id, sheet_sheet, sheet_range, field_blacklist, field_status, field_contact
+      FROM Sheets
+      WHERE campaign_id = ?
+    `, [campaign_id]);
+
+    res.status(200).json(results);
+  } catch (err) {
+    console.error('Error al obtener las hojas:', err);
+    res.status(500).json({ message: 'Error al obtener las hojas de la campaña' });
   }
 });
 

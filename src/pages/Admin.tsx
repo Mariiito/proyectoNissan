@@ -56,8 +56,10 @@ interface Credencial {
 interface CampanaForm {
   nombre: string;
   descripcion: string;
-  usuario: string;
   subcuenta: number | null;
+  credential_sheet_id: number | null;
+  credential_template_id: number | null;
+  credential_twilio_id: number | null;
 }
 
 // Nueva interface para Asociar Campos
@@ -136,10 +138,7 @@ const Admin: React.FC = () => {
     { id: 1, nombre: 'Prueba Campaña', descripcion: '-', subcuenta: 1, credencialTwilio: 2, credencialGcp: 1, plantillas: 2, sheets: 1, creado: '11/2/2025, 10:33:44', actualizado: '27/2/2025, 18:04:05' }
   ]);
   const [userSubcuentas, setUserSubcuentas] = useState<SubcuentasData[]>([]);
-  // const [listaCredenciales] = useState<Credencial[]>([
-  //   { id: 1, name: 'Twilio-Victor', json: '{\n  "key": "value"\n}', created_at: '20/2/2025, 17:38:18', updated_at: '21/2/2025, 10:08:57' },
-  //   { id: 2, name: 'Huerpi', json: '{\n  "key": "value"\n}', created_at: '20/2/2025, 17:26:57', updated_at: '20/2/2025, 17:26:57' },
-  // ]);
+
   const [credentialAssociations, setCredentialAssociations] = useState<{ credential_id: number }[]>([{ credential_id: 0 }]);
 
   const [phoneAssociations, setPhoneAssociations] = useState<{ number_phone: number }[]>([{ number_phone: 0 }]);
@@ -165,19 +164,16 @@ const Admin: React.FC = () => {
     tipo: ''
   });
 
-  // Nuevo estado para el email del usuario
-  const [userEmail, setUserEmail] = useState<string>('');
 
-  //Nuevo Estado Asociar credenciales
-  // const [credencialSeleccionada, setCredencialSeleccionada] = useState<number>(0);
-  // const [CantidadCredenciales, setCantidadCredenciales] = useState<number>(0);
 
   // Estado para el formulario de campaña
   const [campanaForm, setCampanaForm] = useState<CampanaForm>({
     nombre: '',
     descripcion: '',
-    usuario: '',
     subcuenta: null,
+    credential_sheet_id: null,
+    credential_template_id: null,
+    credential_twilio_id: null,
   });
 
   // Estados para el formulario de "Asociar Campos"
@@ -214,11 +210,11 @@ const Admin: React.FC = () => {
     const fetchUserEmail = async () => {
       try {
         const response = await fetch('http://localhost:3001/user-email');
-        console.log("Respuesta del backend:", response); // Agrega este console.log
+        console.log("Respuesta del backend:", response);
         if (response.ok) {
           const data = await response.json();
-          console.log("Datos del backend:", data); // Agrega este console.log
-          setUserEmail(data.email);
+          console.log("Datos del backend:", data);
+          setEmail(data.email); // Cambiado de setUserEmail a setEmail
         } else {
           console.error('Error al obtener el email del usuario:', response.status);
         }
@@ -251,6 +247,25 @@ const Admin: React.FC = () => {
   }, [tabActiva]);
 
 
+  useEffect(() => {
+    const fetchCredentials = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/credentials');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setCredentials(data);
+      } catch (error) {
+        console.error("Could not fetch credentials:", error);
+      }
+    };
+
+    if (tabActiva === 'crear-campana') {
+      fetchCredentials();
+    }
+  }, [tabActiva]);
+
   // Efecto para cargar subcuentas del usuario cuando cambia el email
   useEffect(() => {
     const fetchUserSubcuentas = async () => {
@@ -271,7 +286,6 @@ const Admin: React.FC = () => {
     fetchUserSubcuentas();
   }, [email]);
 
-  // Función para obtener las campañas desde el backend
   // Función para obtener las campañas desde el backend
   const fetchCampaigns = async () => {
     try {
@@ -320,7 +334,7 @@ const Admin: React.FC = () => {
       }
     };
 
-    if (tabActiva === 'asociar-numeros') {
+    if (tabActiva === 'numeros-tab') {
       fetchNumberPhones();
     }
   }, [tabActiva]);
@@ -366,14 +380,58 @@ const Admin: React.FC = () => {
     navigate('/');
   };
   // Función para el botón "Buscar"
-  const handleBuscarUsuario = () => {
+  const handleBuscarUsuario = async () => {
     console.log("handleBuscarUsuario ejecutado");
-    console.log('userEmail:', userEmail);
-    setEmail(userEmail);
-    // Resetear selecciones y asociaciones cuando se cambia de usuario
-    setSubcuentaSeleccionada(0);
-    setPhoneAssociations([{ number_phone: 0 }]);
-    console.log('email:', email);
+
+    if (!email) {
+      setMensaje({
+        texto: 'Debe ingresar un correo electrónico',
+        tipo: 'error'
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:3001/sub_accounts_by_user?email=${email}`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setUserSubcuentas(data);
+
+      if (data.length === 0) {
+        setMensaje({
+          texto: 'No se encontraron subcuentas para este usuario',
+          tipo: 'error'
+        });
+      } else {
+        setMensaje({
+          texto: `Se encontraron ${data.length} subcuentas para este usuario`,
+          tipo: 'exito'
+        });
+      }
+
+      // Resetear selecciones cuando se cambia de usuario
+      setCampanaForm(prevForm => ({
+        ...prevForm,
+        subcuenta: null,
+        credential_sheet_id: null,
+        credential_template_id: null
+      }));
+
+    } catch (error) {
+      console.error("Error al buscar subcuentas:", error);
+      setMensaje({
+        texto: 'Error al buscar subcuentas para este usuario',
+        tipo: 'error'
+      });
+    }
+
+    setTimeout(() => {
+      setMensaje({ texto: '', tipo: '' });
+    }, 5000);
   };
 
   const handleCreateSubcuenta = async () => {
@@ -678,13 +736,7 @@ const Admin: React.FC = () => {
       setMensaje({ texto: '', tipo: '' });
     }, 5000);
   };
-  // const handleDecrementarCredenciales = () => {
-  //   setCantidadCredenciales(CantidadCredenciales > 0 ? CantidadCredenciales - 1 : 0);
-  // };
 
-  // const handleIncrementarCredenciales = () => {
-  //   setCantidadCredenciales(CantidadCredenciales + 1);
-  // };
 
   // Handler para el formulario de campaña
   const handleCampanaFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -695,9 +747,78 @@ const Admin: React.FC = () => {
     }));
   };
 
-  const handleCampanaFormSubmit = () => {
-    // Aquí puedes hacer algo con los datos del formulario, como enviarlos a un servidor.
-    alert(`Creando campaña con nombre: ${campanaForm.nombre}, descripción: ${campanaForm.descripcion}, usuario: ${campanaForm.usuario}, subcuenta: ${campanaForm.subcuenta}`);
+  const handleCampanaFormSubmit = async () => {
+    try {
+      // Validar que todos los campos requeridos estén llenos
+      if (!campanaForm.nombre || !campanaForm.subcuenta || !campanaForm.credential_sheet_id || !campanaForm.credential_template_id) {
+        setMensaje({
+          texto: 'Todos los campos son obligatorios',
+          tipo: 'error'
+        });
+        return;
+      }
+
+      // Enviar los datos al servidor
+      const response = await fetch('http://localhost:3001/campaigns', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: campanaForm.nombre,
+          description: campanaForm.descripcion,
+          sub_account_id: campanaForm.subcuenta,
+          credential_sheet_id: campanaForm.credential_sheet_id,
+          credential_template_id: campanaForm.credential_template_id,
+          credential_twilio_id: campanaForm.credential_twilio_id,
+        }),
+      });
+
+      if (response.ok) {
+        // Mostrar mensaje de éxito
+        setMensaje({
+          texto: 'Campaña creada exitosamente',
+          tipo: 'exito'
+        });
+
+        // Limpiar el formulario
+        setCampanaForm(prev => ({
+          ...prev,
+          nombre: '',
+          descripcion: '',
+          subcuenta: null,
+          credential_sheet_id: null,
+          credential_template_id: null
+        }));
+
+        // Limpiar el email y las subcuentas
+        setEmail('');
+        setUserSubcuentas([]);
+
+        // Si estamos en la pestaña de campañas, actualizar la lista
+        if (tabActiva === 'campanas') {
+          fetchCampaigns();
+        }
+      } else {
+        const errorData = await response.json();
+        console.error('Error al crear la campaña:', errorData);
+        setMensaje({
+          texto: `Error al crear la campaña: ${errorData.message || 'Error desconocido'}`,
+          tipo: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error al conectar con el servidor:', error);
+      setMensaje({
+        texto: 'Error al conectar con el servidor',
+        tipo: 'error'
+      });
+    }
+
+    // Ocultar el mensaje después de 5 segundos
+    setTimeout(() => {
+      setMensaje({ texto: '', tipo: '' });
+    }, 5000);
   };
 
   // Handler para el formulario de "Asociar Campos"
@@ -798,7 +919,6 @@ const Admin: React.FC = () => {
     }, 5000);
   };
 
-
   // Options para selects
   const subcuentasOptions = subcuentas.map(subcuenta => (
     <option
@@ -815,12 +935,6 @@ const Admin: React.FC = () => {
     </option>
   ));
 
-  // const credencialesOptions = credentials.map(credencial => (
-  //   <option key={credencial.id} value={credencial.id} style={{ color: 'black' }}>
-  //     {credencial.name}
-  //   </option>
-  // ));
-
   // Obtenemos las opciones de campañas (necesario para el select de campañas)
   const campanasOptions = campanas.map(campana => (
     <option
@@ -831,14 +945,6 @@ const Admin: React.FC = () => {
       {campana.nombre}
     </option>
   ));
-
-  // Remove this unused function
-  // function handleDecrementarNumeros(): void {
-  //   if (typeof CantidadCredenciales === 'number') {
-  //     setCantidadCredenciales(prev => prev > 0 ? prev - 1 : 0);
-  //   }
-  // }
-
 
   // Estilos personalizados para los selects
   const selectStyle = {
@@ -1031,7 +1137,7 @@ const Admin: React.FC = () => {
                     <td className="py-3 px-4 text-black">{numero.id}</td>
                     <td className="py-3 px-4 text-black">{numero.nombre}</td>
                     <td className="py-3 px-4 text-black">{numero.compania}</td>
-                    <td className="py-3 px-4 text-black">{numero.numero}</td>
+                    <td className="py-3 px-4 text-black">{numero.numero ? `+52 ${numero.numero}` : '+52 0'}</td>
                     <td className="py-3 px-4 text-black">{numero.creado}</td>
                     <td className="py-3 px-4 text-black">{numero.actualizado}</td>
                     <td className="py-3 px-4">
@@ -1439,6 +1545,8 @@ const Admin: React.FC = () => {
         {tabActiva === 'crear-campana' && (
           <div className="max-w-3xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Crear Campaña</h2>
+
+            {/* Nombre y Descripción */}
             <div className="mb-6">
               <label className="block font-medium text-gray-700 mb-1">Nombre</label>
               <input
@@ -1463,40 +1571,110 @@ const Admin: React.FC = () => {
                 className="w-full p-2 border border-gray-300 rounded mb-2 text-black"
               />
             </div>
+
+            {/* Usuario y Subcuenta */}
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Usuario</label>
-              <input
-                type="email"
-                id="usuario"
-                name="usuario"
-                placeholder="Correo del usuario"
-                value={campanaForm.usuario}
-                onChange={handleCampanaFormChange}
-                className="w-full p-2 border border-gray-300 rounded mb-2 text-black"
-              />
-              <div className="flex gap-2">
-                <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">
-                  Buscar</button>
-                <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Lista de usuarios</button>
+              <h3 className="text-lg font-semibold mb-3 text-gray-700 border-b pb-2">Usuario y Subcuenta</h3>
+              <div className="mb-4">
+                <label className="block font-medium text-gray-700 mb-1">Usuario</label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="email"
+                    id="usuario"
+                    name="usuario"
+                    placeholder="Correo del usuario"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded text-black"
+                  />
+                  <button
+                    className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black"
+                    onClick={handleBuscarUsuario}
+                  >
+                    Buscar
+                  </button>
+                  <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">
+                    Lista de usuarios
+                  </button>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block font-medium text-gray-700 mb-1">Subcuenta</label>
+                <select
+                  id="subcuenta"
+                  name="subcuenta"
+                  value={campanaForm.subcuenta || ''}
+                  onChange={(e) => setCampanaForm((prevForm) => ({ ...prevForm, subcuenta: Number(e.target.value) }))}
+                  className="w-full p-2 border border-gray-300 rounded"
+                  style={selectStyle}
+                  disabled={userSubcuentas.length === 0}
+                >
+                  <option value="" style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar subcuenta</option>
+                  {userSubcuentas.map(subcuenta => (
+                    <option
+                      key={subcuenta.id}
+                      value={subcuenta.id}
+                      style={{ color: 'black', fontWeight: 'bold' }}
+                    >
+                      {subcuenta.Nombre}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
+
+            {/* Credenciales */}
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Subcuenta</label>
-              <select
-                id="subcuenta"
-                name="subcuenta"
-                value={campanaForm.subcuenta || ''}
-                onChange={(e) => setCampanaForm((prevForm) => ({ ...prevForm, subcuenta: Number(e.target.value) }))}
-                className="w-full p-2 border border-gray-300 rounded"
-                style={selectStyle}
-              >
-                <option value="" style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar subcuenta</option>
-                {subcuentasOptions}
-              </select>
+              <h3 className="text-lg font-semibold mb-3 text-gray-700 border-b pb-2">Credenciales</h3>
+
+              <div className="mb-4">
+                <label className="block font-medium text-gray-700 mb-1">Credencial para Google Sheets</label>
+                <select
+                  id="credential_sheet_id"
+                  name="credential_sheet_id"
+                  value={campanaForm.credential_sheet_id || ''}
+                  onChange={(e) => setCampanaForm((prevForm) => ({ ...prevForm, credential_sheet_id: Number(e.target.value) }))}
+                  className="w-full p-2 border border-gray-300 rounded"
+                  style={selectStyle}
+                  disabled={campanaForm.subcuenta === null}
+                >
+                  <option value="" style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar credencial para Google Sheets</option>
+                  {credentials.map(credencial => (
+                    <option key={credencial.id} value={credencial.id} style={{ color: 'black' }}>
+                      {credencial.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="mb-4">
+                <label className="block font-medium text-gray-700 mb-1">Credencial para mensajes y plantillas</label>
+                <select
+                  id="credential_template_id"
+                  name="credential_template_id"
+                  value={campanaForm.credential_template_id || ''}
+                  onChange={(e) => setCampanaForm((prevForm) => ({ ...prevForm, credential_template_id: Number(e.target.value) }))}
+                  className="w-full p-2 border border-gray-300 rounded"
+                  style={selectStyle}
+                  disabled={campanaForm.subcuenta === null}
+                >
+                  <option value="" style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar credencial para mensajes</option>
+                  {credentials
+                    .filter(credencial => credencial.name.toLowerCase() !== 'no')
+                    .map(credencial => (
+                      <option key={credencial.id} value={credencial.id} style={{ color: 'black' }}>
+                        {credencial.name}
+                      </option>
+                    ))
+                  }
+                </select>
+              </div>
             </div>
+
             <div className="flex justify-end">
               <button
-                className="flex items-center gap-2 px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
+                className="flex items-center gap-2 px-5 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
                 onClick={handleCampanaFormSubmit}
               >
                 Guardar campaña <FaPencilAlt />
