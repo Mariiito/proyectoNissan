@@ -835,6 +835,111 @@ app.put('/number_phones/:id', async (req, res) => {
     res.status(500).json({ message: 'Error al actualizar el número telefónico.' });
   }
 });
+
+// Endpoint para actualizar credenciales
+app.put('/credentials/:id', async (req, res) => {
+  const credentialId = req.params.id;
+  const { name, json } = req.body;
+
+  if (!credentialId) {
+    return res.status(400).json({ message: 'ID de credencial es requerido.' });
+  }
+
+  try {
+    // Verificar que la credencial existe
+    const [credentialResults] = await db.promise().query('SELECT id FROM credentials WHERE id = ?', [credentialId]);
+
+    if (credentialResults.length === 0) {
+      return res.status(404).json({ message: 'Credencial no encontrada.' });
+    }
+
+    // Validar que el JSON sea válido
+    try {
+      // Verificar si ya es un string JSON o es un objeto
+      let jsonString = json;
+      if (typeof json === 'object') {
+        jsonString = JSON.stringify(json);
+      } else {
+        // Verificar que es un JSON válido tratando de parsearlo
+        JSON.parse(json);
+      }
+    } catch (e) {
+      return res.status(400).json({ message: 'El formato JSON no es válido.' });
+    }
+
+    // Actualizar los datos de la credencial
+    const [result] = await db.promise().query(`
+      UPDATE credentials
+      SET 
+        name = ?,
+        json = ?,
+        updated_at = NOW()
+      WHERE id = ?
+    `, [name, json, credentialId]);
+
+    if (result.affectedRows === 0) {
+      return res.status(500).json({ message: 'No se pudo actualizar la credencial.' });
+    }
+
+    res.status(200).json({
+      message: 'Credencial actualizada exitosamente.',
+      credentialId: credentialId
+    });
+  } catch (err) {
+    console.error('Error al actualizar la credencial:', err);
+    res.status(500).json({ message: 'Error al actualizar la credencial.' });
+  }
+});
+
+// Endpoint para obtener las plantillas asociadas a una campaña
+app.get('/templates_by_campaign/:campaign_id', async (req, res) => {
+  const campaignId = req.params.campaign_id;
+
+  if (!campaignId) {
+    return res.status(400).json({ message: 'ID de campaña es requerido' });
+  }
+
+  try {
+    const [results] = await db.promise().query(`
+      SELECT id, name, associated_fields, sid, 
+             DATE_FORMAT(created_at, '%d/%m/%Y, %H:%i:%s') AS created_at, 
+             DATE_FORMAT(updated_at, '%d/%m/%Y, %H:%i:%s') AS updated_at, 
+             campaign_id
+      FROM Templates
+      WHERE campaign_id = ?
+    `, [campaignId]);
+
+    res.status(200).json(results);
+  } catch (err) {
+    console.error('Error al obtener las plantillas:', err);
+    res.status(500).json({ message: 'Error al obtener las plantillas de la campaña' });
+  }
+});
+
+// Endpoint para obtener las hojas asociadas a una campaña
+app.get('/sheets_by_campaign/:campaign_id', async (req, res) => {
+  const campaignId = req.params.campaign_id;
+
+  if (!campaignId) {
+    return res.status(400).json({ message: 'ID de campaña es requerido' });
+  }
+
+  try {
+    const [results] = await db.promise().query(`
+      SELECT id, sheet_id, sheet_sheet, sheet_range, field_blacklist, field_status, field_contact,
+             DATE_FORMAT(created_at, '%d/%m/%Y, %H:%i:%s') AS created_at, 
+             DATE_FORMAT(updated_at, '%d/%m/%Y, %H:%i:%s') AS updated_at, 
+             campaign_id
+      FROM Sheets
+      WHERE campaign_id = ?
+    `, [campaignId]);
+
+    res.status(200).json(results);
+  } catch (err) {
+    console.error('Error al obtener las hojas:', err);
+    res.status(500).json({ message: 'Error al obtener las hojas de la campaña' });
+  }
+});
 // Esta debe ser la última línea de tu archivo, después de todos los endpoints
 app.listen(port, () => {
   console.log(`Servidor backend escuchando en el puerto ${port}`);

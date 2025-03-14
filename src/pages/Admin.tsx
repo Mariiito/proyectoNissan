@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import UserEditModal from './UserEditModal';
 import SubcuentaEditModal from './SubcuentaEditModal';
 import NumeroTelefonicoEditModal from './NumeroTelefonicoEditModal';
+import CredencialEditModal from './CredencialEditModal';
+import CampanaEditModal from './CampanaEditModal';
 
 // Interfaces
 interface Usuario {
@@ -150,7 +152,8 @@ const Admin: React.FC = () => {
   const [selectedSubcuenta, setSelectedSubcuenta] = useState<Subcuenta | null>(null);
   // const [usuariosSelect, setUsuariosSelect] = useState<{ id: number; email: string }[]>([]);
   const [phoneAssociations, setPhoneAssociations] = useState<{ number_phone: number }[]>([{ number_phone: 0 }]);
-
+  const [editCampanaModalOpen, setEditCampanaModalOpen] = useState(false);
+  const [selectedCampana, setSelectedCampana] = useState<CampaignData | null>(null);
   const [tabActiva, setTabActiva] = useState('usuarios');
   const [nombreSubcuenta, setNombreSubcuenta] = useState('');
   const [email, setEmail] = useState('');
@@ -158,6 +161,8 @@ const Admin: React.FC = () => {
   const [jsonCredencial, setJsonCredencial] = useState('{\n  "key": "value"\n}');
   // const [numeroTelefonicoSeleccionado, setNumeroTelefonicoSeleccionado] = useState<number>(0);
   const [subcuentaSeleccionada, setSubcuentaSeleccionada] = useState<number>(0);
+  const [editCredencialModalOpen, setEditCredencialModalOpen] = useState(false);
+  const [selectedCredencial, setSelectedCredencial] = useState<Credencial | null>(null);
 
   // Estado para el formulario de números telefónicos
   const [numeroTelefonicoForm, setNumeroTelefonicoForm] = useState<NumeroTelefonicoForm>({
@@ -172,7 +177,7 @@ const Admin: React.FC = () => {
     tipo: ''
   });
 
-  
+
   // Estado para el formulario de campaña
   const [campanaForm, setCampanaForm] = useState<CampanaForm>({
     nombre: '',
@@ -436,6 +441,142 @@ const Admin: React.FC = () => {
       });
     }
 
+    setTimeout(() => {
+      setMensaje({ texto: '', tipo: '' });
+    }, 5000);
+  };
+
+  function handleEditCredencialClick(credencial: Credencial): void {
+    setSelectedCredencial(credencial);
+    setEditCredencialModalOpen(true);
+  }
+
+  const handleCloseCredencialModal = () => {
+    setEditCredencialModalOpen(false);
+    setSelectedCredencial(null);
+  };
+
+  const handleSaveCredencial = async (updatedCredencial: Credencial) => {
+    try {
+      // Adaptar el objeto para coincidir con lo que espera el backend
+      const dataToSend = {
+        id: updatedCredencial.id,
+        name: updatedCredencial.name,
+        json: updatedCredencial.json
+      };
+
+      const response = await fetch(`http://localhost:3001/credentials/${updatedCredencial.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dataToSend),
+      });
+
+      if (response.ok) {
+        setMensaje({
+          texto: 'Credencial actualizada exitosamente',
+          tipo: 'exito'
+        });
+
+        // Actualiza la lista de credenciales
+        if (tabActiva === 'credenciales-tab') {
+          const fetchCredentials = async () => {
+            try {
+              const response = await fetch('http://localhost:3001/credentials');
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+              const data = await response.json();
+              setCredentials(data);
+            } catch (error) {
+              console.error("Could not fetch credentials:", error);
+            }
+          };
+
+          fetchCredentials();
+        }
+
+        // Cierra el modal
+        handleCloseCredencialModal();
+      } else {
+        const errorData = await response.json();
+        setMensaje({
+          texto: `Error al actualizar la credencial: ${errorData.message || 'Error desconocido'}`,
+          tipo: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error al conectar con el servidor:', error);
+      setMensaje({
+        texto: 'Error al conectar con el servidor',
+        tipo: 'error'
+      });
+    }
+
+    // Ocultar el mensaje después de 5 segundos
+    setTimeout(() => {
+      setMensaje({ texto: '', tipo: '' });
+    }, 5000);
+  };
+
+  function handleEditCampanaClick(campana: CampaignData): void {
+    setSelectedCampana(campana);
+    setEditCampanaModalOpen(true);
+  }
+
+  const handleCloseCampanaModal = () => {
+    setEditCampanaModalOpen(false);
+    setSelectedCampana(null);
+  };
+
+  const handleSaveCampana = async (updatedCampana: any) => {
+    try {
+      // Preparar datos para enviar al servidor
+      const dataToSend = {
+        id: updatedCampana.id,
+        name: updatedCampana.name,
+        description: updatedCampana.description,
+        sub_account_id: updatedCampana.sub_account_id,
+        credential_twilio_id: updatedCampana.credential_twilio_id,
+        credential_gcp_id: updatedCampana.credential_gcp_id
+      };
+
+      const response = await fetch(`http://localhost:3001/campaigns/${updatedCampana.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dataToSend),
+      });
+
+      if (response.ok) {
+        setMensaje({
+          texto: 'Campaña actualizada exitosamente',
+          tipo: 'exito'
+        });
+
+        // Actualiza la lista de campañas
+        fetchCampaigns();
+
+        // Cierra el modal
+        handleCloseCampanaModal();
+      } else {
+        const errorData = await response.json();
+        setMensaje({
+          texto: `Error al actualizar la campaña: ${errorData.message || 'Error desconocido'}`,
+          tipo: 'error'
+        });
+      }
+    } catch (error) {
+      console.error('Error al conectar con el servidor:', error);
+      setMensaje({
+        texto: 'Error al conectar con el servidor',
+        tipo: 'error'
+      });
+    }
+
+    // Ocultar el mensaje después de 5 segundos
     setTimeout(() => {
       setMensaje({ texto: '', tipo: '' });
     }, 5000);
@@ -1470,7 +1611,12 @@ const Admin: React.FC = () => {
                     <td className="py-3 px-4 text-black">{campana.Creado}</td>
                     <td className="py-3 px-4 text-black">{campana.Actualizado}</td>
                     <td className="py-3 px-4">
-                      <button className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Editar</button>
+                      <button
+                        className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                        onClick={() => handleEditCampanaClick(campana)}
+                      >
+                        Editar
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -1538,7 +1684,12 @@ const Admin: React.FC = () => {
                     <td className="py-3 px-4 text-black">{credencial.created_at}</td>
                     <td className="py-3 px-4 text-black">{credencial.updated_at}</td>
                     <td className="py-3 px-4">
-                      <button className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Editar</button>
+                      <button
+                        className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                        onClick={() => handleEditCredencialClick(credencial)}
+                      >
+                        Editar
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -2032,6 +2183,26 @@ const Admin: React.FC = () => {
           onClose={handleCloseSubcuentaModal}
           onSave={handleSaveSubcuenta}
           isOpen={editSubcuentaModalOpen}
+        />
+      )}
+
+      {editCredencialModalOpen && (
+        <CredencialEditModal
+          credencial={selectedCredencial}
+          onClose={handleCloseCredencialModal}
+          onSave={handleSaveCredencial}
+          isOpen={editCredencialModalOpen}
+        />
+      )}
+
+      {editCampanaModalOpen && (
+        <CampanaEditModal
+          campana={selectedCampana}
+          subcuentas={subcuentasData}
+          credenciales={credentials}
+          onClose={handleCloseCampanaModal}
+          onSave={handleSaveCampana}
+          isOpen={editCampanaModalOpen}
         />
       )}
 
