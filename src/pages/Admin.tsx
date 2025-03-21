@@ -75,6 +75,7 @@ interface AsociarCamposForm {
   sheetId: string;
   hoja: string;
   rango: string;
+  plantilla: number | null;
 }
 
 interface CampaignData {
@@ -114,6 +115,15 @@ interface NumeroTelefonicoForm {
   compania: string;
 }
 
+interface Plantilla {
+  ID: number;
+  Nombre: string;
+  Campos: string;
+  Campana: number;
+  Creado: string;
+  Actualizado: string;
+}
+
 const Admin: React.FC = () => {
   const navigate = useNavigate();
 
@@ -134,13 +144,15 @@ const Admin: React.FC = () => {
     { id: 2, nombre: 'Nissan Grupo Granauto Sonora', compania: 'Desconocido', numero: '+52 6624216955', creado: '11/2/2025, 10:32:14', actualizado: '11/2/2025, 10:32:14' },
     { id: 1, nombre: 'Grupo Granauto', compania: 'Desconocido', numero: '+52 6622822820', creado: '11/2/2025, 10:32:14', actualizado: '11/2/2025, 10:32:14' }
   ]);
-  const [campanas] = useState<Campana[]>([
-    { id: 13, nombre: 'Masivos-Posventa', descripcion: 'Masivos posventa', subcuenta: 18, credencialTwilio: 7, credencialGcp: 1, plantillas: 1, sheets: 1, creado: '27/2/2025, 10:52:25', actualizado: '27/2/2025, 18:02:25' },
-    { id: 11, nombre: 'pruebas-bdc', descripcion: 'Pruebas', subcuenta: 17, credencialTwilio: 2, credencialGcp: 1, plantillas: 1, sheets: 1, creado: '25/2/2025, 11:22:42', actualizado: '25/2/2025, 11:22:42' },
-    { id: 9, nombre: 'Prueba-Huerpel', descripcion: 'Prueba para guerpel', subcuenta: 16, credencialTwilio: 5, credencialGcp: 1, plantillas: 1, sheets: 1, creado: '21/2/2025, 10:59:39', actualizado: '21/2/2025, 10:59:39' },
-    { id: 1, nombre: 'Prueba Campaña', descripcion: '-', subcuenta: 1, credencialTwilio: 2, credencialGcp: 1, plantillas: 2, sheets: 1, creado: '11/2/2025, 10:33:44', actualizado: '27/2/2025, 18:04:05' }
-  ]);
+  // const [campanas] = useState<Campana[]>([
+  //   { id: 13, nombre: 'Masivos-Posventa', descripcion: 'Masivos posventa', subcuenta: 18, credencialTwilio: 7, credencialGcp: 1, plantillas: 1, sheets: 1, creado: '27/2/2025, 10:52:25', actualizado: '27/2/2025, 18:02:25' },
+  //   { id: 11, nombre: 'pruebas-bdc', descripcion: 'Pruebas', subcuenta: 17, credencialTwilio: 2, credencialGcp: 1, plantillas: 1, sheets: 1, creado: '25/2/2025, 11:22:42', actualizado: '25/2/2025, 11:22:42' },
+  //   { id: 9, nombre: 'Prueba-Huerpel', descripcion: 'Prueba para guerpel', subcuenta: 16, credencialTwilio: 5, credencialGcp: 1, plantillas: 1, sheets: 1, creado: '21/2/2025, 10:59:39', actualizado: '21/2/2025, 10:59:39' },
+  //   { id: 1, nombre: 'Prueba Campaña', descripcion: '-', subcuenta: 1, credencialTwilio: 2, credencialGcp: 1, plantillas: 2, sheets: 1, creado: '11/2/2025, 10:33:44', actualizado: '27/2/2025, 18:04:05' }
+  // ]);
   const [userSubcuentas, setUserSubcuentas] = useState<SubcuentasData[]>([]);
+  const [campanasSubcuenta, setCampanasSubcuenta] = useState<CampaignData[]>([]);
+
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<Usuario | null>(null);
   const [credentialAssociations, setCredentialAssociations] = useState<{ credential_id: number }[]>([{ credential_id: 0 }]);
@@ -163,6 +175,9 @@ const Admin: React.FC = () => {
   const [subcuentaSeleccionada, setSubcuentaSeleccionada] = useState<number>(0);
   const [editCredencialModalOpen, setEditCredencialModalOpen] = useState(false);
   const [selectedCredencial, setSelectedCredencial] = useState<Credencial | null>(null);
+
+  // Validar correo electrónico
+  const [emailValidado, setEmailValidado] = useState(false);
 
   // Estado para el formulario de números telefónicos
   const [numeroTelefonicoForm, setNumeroTelefonicoForm] = useState<NumeroTelefonicoForm>({
@@ -196,9 +211,11 @@ const Admin: React.FC = () => {
     sheetId: '',
     hoja: '',
     rango: '',
+    plantilla: null
   });
 
   const [campaignsData, setCampaignsData] = useState<CampaignData[]>([]);
+  const [filteredCampaigns, setFilteredCampaigns] = useState<CampaignData[]>([]);
   const [numberPhonesData, setNumberPhonesData] = useState<NumberPhoneData[]>([]);
   // Estado para controlar la paginación
   const [paginaActual, setPaginaActual] = useState(1);
@@ -217,16 +234,37 @@ const Admin: React.FC = () => {
     }
   }, [tabActiva]);
 
+  const filterCampaignsBySubcuenta = (subcuentaId: number) => {
+    const filtered = campaignsData.filter(campana => Number(campana.Subcuenta) === subcuentaId);
+    setFilteredCampaigns(filtered);
+  };
+
+  const handleSubcuentaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedSubcuenta = Number(e.target.value);
+    setAsociarCamposForm(prevForm => ({ ...prevForm, subcuenta: selectedSubcuenta }));
+  
+    try {
+      const response = await fetch(`http://localhost:3001/campaigns_by_sub_account/${selectedSubcuenta}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setCampanasSubcuenta(data);
+    } catch (error) {
+      console.error("Could not fetch campaigns by subcuenta:", error);
+    }
+  };
+
   // Efecto para obtener el email del usuario al montar el componente
   useEffect(() => {
     const fetchUserEmail = async () => {
       try {
         const response = await fetch('http://localhost:3001/user-email');
-        console.log("Respuesta del backend:", response);
         if (response.ok) {
           const data = await response.json();
-          console.log("Datos del backend:", data);
-          setEmail(data.email); // Cambiado de setUserEmail a setEmail
+          if (!email) {
+            setEmail(data.email);
+          }
         } else {
           console.error('Error al obtener el email del usuario:', response.status);
         }
@@ -236,8 +274,7 @@ const Admin: React.FC = () => {
     };
 
     fetchUserEmail();
-  }, []);
-
+  }, [email]);
 
   useEffect(() => {
     const fetchCredentials = async () => {
@@ -298,6 +335,27 @@ const Admin: React.FC = () => {
     fetchUserSubcuentas();
   }, [email]);
 
+  // Efecto para cargar campañas de la subcuenta seleccionada
+  useEffect(() => {
+    const fetchCampaignsBySubcuenta = async () => {
+      if (subcuentaSeleccionada) {
+        try {
+          const response = await fetch(`http://localhost:3001/campaigns_by_sub_account?sub_account_id=${subcuentaSeleccionada}`);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const data = await response.json();
+          setCampanasSubcuenta(data);
+        } catch (error) {
+          console.error("Could not fetch campaigns by subcuenta:", error);
+        }
+      }
+    };
+  
+    fetchCampaignsBySubcuenta();
+  }, [subcuentaSeleccionada]);
+  
+
   // Función para obtener las campañas desde el backend
   const fetchCampaigns = async () => {
     try {
@@ -352,6 +410,10 @@ const Admin: React.FC = () => {
   }, [tabActiva]);
 
   useEffect(() => {
+    console.log("Campañas de la subcuenta seleccionada:", campanasSubcuenta);
+  }, [campanasSubcuenta]);
+
+  useEffect(() => {
     const fetchUsers = async () => {
       try {
         const response = await fetch('http://localhost:3001/users');
@@ -391,6 +453,7 @@ const Admin: React.FC = () => {
   const handleLogout = () => {
     navigate('/');
   };
+
   // Función para el botón "Buscar"
   const handleBuscarUsuario = async () => {
     console.log("handleBuscarUsuario ejecutado");
@@ -418,11 +481,13 @@ const Admin: React.FC = () => {
           texto: 'No se encontraron subcuentas para este usuario',
           tipo: 'error'
         });
+        setEmailValidado(false);
       } else {
         setMensaje({
           texto: `Se encontraron ${data.length} subcuentas para este usuario`,
           tipo: 'exito'
         });
+        setEmailValidado(true);
       }
 
       // Resetear selecciones cuando se cambia de usuario
@@ -432,6 +497,7 @@ const Admin: React.FC = () => {
         credential_sheet_id: null,
         credential_template_id: null
       }));
+      setCampanasSubcuenta([]); // Resetear campañas de la subcuenta
 
     } catch (error) {
       console.error("Error al buscar subcuentas:", error);
@@ -439,6 +505,7 @@ const Admin: React.FC = () => {
         texto: 'Error al buscar subcuentas para este usuario',
         tipo: 'error'
       });
+      setEmailValidado(false);
     }
 
     setTimeout(() => {
@@ -1285,15 +1352,15 @@ const Admin: React.FC = () => {
   ));
 
   // Obtenemos las opciones de campañas (necesario para el select de campañas)
-  const campanasOptions = campanas.map(campana => (
-    <option
-      key={campana.id}
-      value={campana.id}
-      style={{ color: 'black', fontWeight: 'bold' }}
-    >
-      {campana.nombre}
-    </option>
-  ));
+  // const campanasOptions = campanas.map(campana => (
+  //   <option
+  //     key={campana.id}
+  //     value={campana.id}
+  //     style={{ color: 'black', fontWeight: 'bold' }}
+  //   >
+  //     {campana.nombre}
+  //   </option>
+  // ));
 
   // Estilos personalizados para los selects
   const selectStyle = {
@@ -1311,6 +1378,63 @@ const Admin: React.FC = () => {
     setEditModalOpen(false);
     setSelectedUser(null);
   };
+
+  const handleOtroBotonClick = () => {
+    // Botón temporal como de que no 
+    alert('Otro botón clickeado');
+  };
+
+  // Función para consultar Sheets de Google
+  const fetchSheetData = async (sheetId: string) => {
+    try {
+      const response = await fetch(`http://localhost:3001/sheet/${sheetId}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log("Sheet data:", data);
+      // Aquí puedes hacer algo con los datos obtenidos
+    } catch (error) {
+      console.error("Could not fetch sheet data:", error);
+    }
+  };
+
+  const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
+
+  const fetchPlantillasByCampana = async (campanaId: number) => {
+    try {
+      const response = await fetch(`http://localhost:3001/templates_by_campaign/${campanaId}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log("Plantillas fetched:", data); // Añade este log para verificar los datos
+      setPlantillas(data);
+    } catch (error) {
+      console.error("Could not fetch templates by campaign:", error);
+    }
+  };
+
+  const handleCampanaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedCampana = Number(e.target.value);
+    setAsociarCamposForm(prevForm => ({ ...prevForm, campana: selectedCampana }));
+    
+    if (selectedCampana) {
+      await fetchPlantillasByCampana(selectedCampana);
+    }
+  };
+
+  useEffect(() => {
+    console.log("Plantillas state updated:", plantillas); // Añade este log para verificar el estado
+  }, [plantillas]);
+  
+
+  // useEffect para consultar el Sheet ID cuando cambie
+  useEffect(() => {
+    if (asociarCamposForm.sheetId) {
+      fetchSheetData(asociarCamposForm.sheetId);
+    }
+  }, [asociarCamposForm.sheetId]);
 
   // Renderizado
   return (
@@ -2060,6 +2184,17 @@ const Admin: React.FC = () => {
             </div>
           </div>
         )}
+        {/* ZZZ
+
+
+
+
+
+
+
+
+
+        ZZZ */}
         {tabActiva === 'asociar-campos' && (
           <div className="max-w-3xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Asociar Campos</h2>
@@ -2068,29 +2203,54 @@ const Admin: React.FC = () => {
               <label className="block font-medium text-gray-700 mb-1">Usuario</label>
               <input
                 type="email"
+                id="usuario"
                 name="usuario"
                 placeholder="Correo"
-                value={asociarCamposForm.usuario}
-                onChange={handleAsociarCamposChange}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded mb-2 text-black"
               />
               <div className="flex gap-2">
-                <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Buscar</button>
-                <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">Lista de usuarios</button>
+                <button
+                  className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black"
+                  onClick={() => {
+                    handleBuscarUsuario();
+                    setSubcuentaSeleccionada(0);
+                    setAsociarCamposForm(prevForm => ({ ...prevForm, subcuenta: null, campana: null, plantilla: null }));
+                    if (!email) {
+                      setEmailValidado(false);
+                    }
+                  }}
+                >
+                  Buscar
+                </button>
+                <button className="px-4 py-2 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 text-black">
+                  Lista de usuarios
+                </button>
               </div>
             </div>
 
             <div className="mb-6">
               <label className="block font-medium text-gray-700 mb-1">Subcuenta</label>
               <select
+                id="subcuenta"
                 name="subcuenta"
                 value={asociarCamposForm.subcuenta || ''}
-                onChange={handleAsociarCamposChange}
+                onChange={handleSubcuentaChange}
                 className="w-full p-2 border border-gray-300 rounded"
                 style={selectStyle}
+                disabled={userSubcuentas.length === 0 || !emailValidado}
               >
-                <option value="" style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar subcuenta</option>
-                {subcuentasOptions}
+                <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar subcuenta</option>
+                {userSubcuentas.map(subcuenta => (
+                  <option
+                    key={subcuenta.id}
+                    value={subcuenta.id}
+                    style={{ color: 'black', fontWeight: 'bold' }}
+                  >
+                    {subcuenta.Nombre}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -2099,62 +2259,118 @@ const Admin: React.FC = () => {
               <select
                 name="campana"
                 value={asociarCamposForm.campana || ''}
-                onChange={handleAsociarCamposChange}
+                onChange={handleCampanaChange}
                 className="w-full p-2 border border-gray-300 rounded"
                 style={selectStyle}
+                disabled={!asociarCamposForm.subcuenta} // Deshabilitar si no hay subcuenta seleccionada
               >
-                <option value="" style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar campaña</option>
-                {campanasOptions}
+                <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar campaña</option>
+                {campanasSubcuenta.map(campana => (
+                  <option key={campana.ID} value={campana.ID} style={{ color: 'black', fontWeight: 'bold' }}>
+                    {campana.Nombre}
+                  </option>
+                ))}
               </select>
             </div>
 
-            <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Sheet ID</label>
-              <input
-                type="text"
-                name="sheetId"
-                placeholder="ID de la hoja de cálculo"
-                value={asociarCamposForm.sheetId}
-                onChange={handleAsociarCamposChange}
-                className="w-full p-2 border border-gray-300 rounded text-black"
-              />
+            <div className="flex flex-wrap gap-4 mb-6">
+              <div className="flex-1">
+                <label className="block font-medium text-gray-700 mb-1">Sheet ID</label>
+                <input
+                  type="text"
+                  name="sheetId"
+                  placeholder="ID de la hoja de cálculo"
+                  value={asociarCamposForm.sheetId}
+                  onChange={handleAsociarCamposChange}
+                  className="w-full p-2 border border-gray-300 rounded text-black"
+                />
+              </div>
+
+              <div className="flex-1">
+                <label className="block font-medium text-gray-700 mb-1">Hoja</label>
+                <input
+                  type="text"
+                  name="hoja"
+                  placeholder="Nombre de la hoja"
+                  value={asociarCamposForm.hoja}
+                  onChange={handleAsociarCamposChange}
+                  className="w-full p-2 border border-gray-300 rounded text-black"
+                />
+              </div>
+
+              <div className="flex-1">
+                <label className="block font-medium text-gray-700 mb-1">Rango</label>
+                <input
+                  type="text"
+                  name="rango"
+                  placeholder="Rango de celdas"
+                  value={asociarCamposForm.rango}
+                  onChange={handleAsociarCamposChange}
+                  className="w-full p-2 border border-gray-300 rounded text-black"
+                />
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  className="px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
+                  onClick={handleOtroBotonClick}
+                  disabled={!asociarCamposForm.campana}
+                >
+                  Buscar
+                </button>
+              </div>
             </div>
 
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Hoja</label>
-              <input
-                type="text"
-                name="hoja"
-                placeholder="Nombre de la hoja"
-                value={asociarCamposForm.hoja}
-                onChange={handleAsociarCamposChange}
-                className="w-full p-2 border border-gray-300 rounded text-black"
-              />
+              <label className="block font-medium text-gray-700 mb-1">Plantilla</label>
+              <select
+                name="plantilla"
+                value={asociarCamposForm.plantilla || ''}
+                onChange={(e) => setAsociarCamposForm(prevForm => ({ ...prevForm, plantilla: Number(e.target.value) }))}
+                className="w-full p-2 border border-gray-300 rounded"
+                style={selectStyle}
+                disabled={!asociarCamposForm.campana} // Deshabilitar si no hay campaña seleccionada
+              >
+                <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar plantilla</option>
+                {plantillas.map(plantilla => (
+                  <option key={plantilla.ID} value={plantilla.ID} style={{ color: 'black', fontWeight: 'bold' }}>
+                    {plantilla.Nombre}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Rango</label>
-              <input
-                type="text"
-                name="rango"
-                placeholder="Rango de celdas"
-                value={asociarCamposForm.rango}
-                onChange={handleAsociarCamposChange}
-                className="w-full p-2 border border-gray-300 rounded text-black"
-              />
-            </div>
+            {/*  */}
+
+
+
+
+
 
             <div className="flex justify-end">
               <button
-                className="flex items-center gap-2 px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
+                className="flex items-center gap-2 px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2] ml-auto"
                 onClick={handleAsociarCamposSubmit}
+                disabled={!asociarCamposForm.campana}
               >
                 Guardar Asociaciones <FaPencilAlt />
               </button>
             </div>
           </div>
         )}
+
       </main>
+      {/* ZZZ
+
+
+
+
+
+
+
+
+
+        ZZZ */}
       <footer className="flex justify-between items-center bg-gray-900 text-white px-4 py-2">
         <div>2025</div>
         <div>AUTO INSIGHTS</div>

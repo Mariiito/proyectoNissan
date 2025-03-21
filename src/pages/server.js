@@ -360,6 +360,90 @@ app.get('/sub_accounts_by_user', async (req, res) => {
   }
 });
 
+// Endpoint para obtener campañas asociadas a una subcuenta
+app.get('/campaigns_by_sub_account/:sub_account_id', async (req, res) => {
+  const { sub_account_id } = req.params;
+
+  // Validar que el ID sea un número entero
+  if (!sub_account_id || isNaN(Number(sub_account_id))) {
+    return res.status(400).json({ message: 'ID de subcuenta inválido' });
+  }
+
+  try {
+    const sql = `
+      SELECT 
+        c.id AS ID,
+        c.name AS Nombre,
+        c.description AS Descripción,
+        c.sub_account_id AS Subcuenta,
+        COUNT(DISTINCT t.id) AS CredencialTwilio,
+        COUNT(DISTINCT s.id) AS CredencialGcp,
+        COALESCE(COUNT(DISTINCT t.id), 0) AS Plantillas,
+        COALESCE(COUNT(DISTINCT s.id), 0) AS Sheets,
+        DATE_FORMAT(c.created_at, '%d/%m/%Y, %H:%i:%s') AS Creado,
+        DATE_FORMAT(c.updated_at, '%d/%m/%Y, %H:%i:%s') AS Actualizado,
+        'Editar' AS Acciones
+      FROM 
+        Campaign c
+      LEFT JOIN 
+        Templates t ON c.id = t.campaign_id
+      LEFT JOIN 
+        Sheets s ON c.id = s.campaign_id
+      WHERE 
+        c.sub_account_id = ${db.escape(sub_account_id)} 
+      GROUP BY 
+        c.id, c.name, c.description, c.sub_account_id, c.created_at, c.updated_at
+      ORDER BY 
+        c.id DESC;
+    `;
+
+    const [results] = await db.promise().query(sql);
+
+    res.status(200).json(results);
+  } catch (err) {
+    console.error('Error al ejecutar la consulta:', err);
+    res.status(500).json({ message: 'Error al obtener las campañas.' });
+  }
+});
+
+// Endpoint para obtener plantillas asociadas a una campaña
+app.get('/templates_by_campaign/:campaign_id', async (req, res) => {
+  const { campaign_id } = req.params;
+
+  // Validar que el ID sea un número entero
+  if (!campaign_id || isNaN(Number(campaign_id))) {
+    return res.status(400).json({ message: 'ID de campaña inválido' });
+  }
+
+  try {
+    const sql = `
+      SELECT 
+        t.id AS ID,
+        t.name AS Nombre,
+        t.associated_fields AS Campos,
+        t.sid AS SID,
+        t.campaign_id AS Campana,
+        DATE_FORMAT(t.created_at, '%d/%m/%Y, %H:%i:%s') AS Creado,
+        DATE_FORMAT(t.updated_at, '%d/%m/%Y, %H:%i:%s') AS Actualizado,
+        'Editar' AS Acciones
+      FROM 
+        Templates t
+      WHERE 
+        t.campaign_id = ${db.escape(campaign_id)} 
+      ORDER BY 
+        t.id DESC;
+    `;
+
+    const [results] = await db.promise().query(sql);
+
+    res.status(200).json(results);
+  } catch (err) {
+    console.error('Error al ejecutar la consulta:', err);
+    res.status(500).json({ message: 'Error al obtener las plantillas.' });
+  }
+});
+
+
 // Endpoint para asociar números telefónicos a una subcuenta
 app.post('/associate_number_phone', async (req, res) => {
   const { sub_account_id, number_phone_id } = req.body;
@@ -945,4 +1029,40 @@ app.listen(port, () => {
   console.log(`Servidor backend escuchando en el puerto ${port}`);
 });
 
+// ...existing code...
 
+app.get('/sheet/:sheetId', async (req, res) => {
+  const { sheetId } = req.params;
+
+  if (!sheetId) {
+    return res.status(400).json({ message: 'ID de hoja es requerido' });
+  }
+
+  try {
+    const [results] = await db.promise().query(`
+      SELECT id, sheet_id, sheet_sheet, sheet_range, field_blacklist, field_status, field_contact
+      FROM Sheets
+      WHERE sheet_id = ?
+    `, [sheetId]);
+
+    if (results.length === 0) {
+      return res.status(404).json({ message: 'Hoja no encontrada' });
+    }
+
+    res.status(200).json(results[0]);
+  } catch (err) {
+    console.error('Error al obtener la hoja:', err);
+    res.status(500).json({ message: 'Error al obtener la hoja' });
+  }
+});
+
+// ...existing code...
+
+
+
+
+
+
+
+
+// Hola, mundo!
