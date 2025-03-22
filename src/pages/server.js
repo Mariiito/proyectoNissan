@@ -1033,20 +1033,21 @@ app.listen(port, () => {
 
 app.get('/sheet/:sheetId', async (req, res) => {
   const { sheetId } = req.params;
+  const { campaignId } = req.query; // Obtener el campaignId de los parámetros de consulta
 
-  if (!sheetId) {
-    return res.status(400).json({ message: 'ID de hoja es requerido' });
+  if (!sheetId || !campaignId) {
+    return res.status(400).json({ message: 'ID de hoja y ID de campaña son requeridos' });
   }
 
   try {
     const [results] = await db.promise().query(`
-      SELECT id, sheet_id, sheet_sheet, sheet_range, field_blacklist, field_status, field_contact
+      SELECT id, sheet_id, sheet_sheet, sheet_range, field_blacklist, field_status, field_contact, campaign_id
       FROM Sheets
-      WHERE sheet_id = ?
-    `, [sheetId]);
+      WHERE sheet_id = ${db.escape(sheetId)} AND campaign_id = ${db.escape(campaignId)}
+    `);
 
     if (results.length === 0) {
-      return res.status(404).json({ message: 'Hoja no encontrada' });
+      return res.status(404).json({ message: 'Hoja no encontrada o no pertenece a la campaña seleccionada' });
     }
 
     res.status(200).json(results[0]);
@@ -1056,7 +1057,7 @@ app.get('/sheet/:sheetId', async (req, res) => {
   }
 });
 
-// ...existing code...
+
 
 
 

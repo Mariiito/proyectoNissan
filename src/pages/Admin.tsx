@@ -477,16 +477,10 @@ const Admin: React.FC = () => {
       setUserSubcuentas(data);
 
       if (data.length === 0) {
-        setMensaje({
-          texto: 'No se encontraron subcuentas para este usuario',
-          tipo: 'error'
-        });
+        toast.error('No se encontró ninguna subcuenta para este usuario');
         setEmailValidado(false);
       } else {
-        setMensaje({
-          texto: `Se encontraron ${data.length} subcuentas para este usuario`,
-          tipo: 'exito'
-        });
+        toast.success(`Se encontró ${data.length} subcuentas para este usuario`);
         setEmailValidado(true);
       }
 
@@ -501,10 +495,7 @@ const Admin: React.FC = () => {
 
     } catch (error) {
       console.error("Error al buscar subcuentas:", error);
-      setMensaje({
-        texto: 'Error al buscar subcuentas para este usuario',
-        tipo: 'error'
-      });
+      toast.error('Error al buscar subcuentas para este usuario');
       setEmailValidado(false);
     }
 
@@ -541,10 +532,7 @@ const Admin: React.FC = () => {
       });
 
       if (response.ok) {
-        setMensaje({
-          texto: 'Credencial actualizada exitosamente',
-          tipo: 'exito'
-        });
+        toast.success('Credencial actualizada exitosamente');
 
         // Actualiza la lista de credenciales
         if (tabActiva === 'credenciales-tab') {
@@ -568,17 +556,11 @@ const Admin: React.FC = () => {
         handleCloseCredencialModal();
       } else {
         const errorData = await response.json();
-        setMensaje({
-          texto: `Error al actualizar la credencial: ${errorData.message || 'Error desconocido'}`,
-          tipo: 'error'
-        });
+        toast.error(`Error al actualizar la credencial: ${errorData.message || 'Error desconocido'}`);
       }
     } catch (error) {
       console.error('Error al conectar con el servidor:', error);
-      setMensaje({
-        texto: 'Error al conectar con el servidor',
-        tipo: 'error'
-      });
+      toast.error('Error al conectar con el servidor');
     }
 
     // Ocultar el mensaje después de 5 segundos
@@ -630,10 +612,7 @@ const Admin: React.FC = () => {
         handleCloseCampanaModal();
       } else {
         const errorData = await response.json();
-        setMensaje({
-          texto: `Error al actualizar la campaña: ${errorData.message || 'Error desconocido'}`,
-          tipo: 'error'
-        });
+        toast.error(`Error al actualizar la campaña: ${errorData.message || 'Error desconocido'}`);
       }
     } catch (error) {
       console.error('Error al conectar con el servidor:', error);
@@ -1379,12 +1358,29 @@ const Admin: React.FC = () => {
     setSelectedUser(null);
   };
 
-  const handleSearchBottonClick = () => {
-    const { sheetId, hoja, rango } = asociarCamposForm;
-    console.log("Sheet ID:", sheetId);
-    console.log("Hoja:", hoja);
-    console.log("Rango:", rango);
-    toast.success('Valores de label OBTENIDOS, ESTATUS clickeado');
+  const handleSearchBottonClick = async () => {
+    const { sheetId, campana } = asociarCamposForm;
+  
+    try {
+      const response = await fetch(`http://localhost:3001/sheet/${sheetId}?campaignId=${campana}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+  
+      // Verificar que el campaign_id sea el mismo que el de la campaña seleccionada
+      if (data.campaign_id !== campana) {
+        toast.error('El Sheet ID no pertenece a la campaña seleccionada');
+        return;
+      }
+  
+      console.log("Sheet data:", data);
+      toast.success('Hoja encontrada');
+      // Aquí puedes hacer algo con los datos obtenidos, como actualizar el estado
+    } catch (error) {
+      console.error("Could not fetch sheet data:", error);
+      toast.error('Error al obtener la hoja');
+    }
   };
 
   // Función para consultar Sheets de Google
@@ -2289,39 +2285,55 @@ const Admin: React.FC = () => {
               />
             </div>
 
-            <div className="flex-1">
-              <label className="block font-medium text-gray-700 mb-1">Hoja</label>
-              <input
-                type="text"
-                name="hoja"
-                placeholder="Nombre de la hoja"
-                value={asociarCamposForm.hoja}
-                onChange={handleAsociarCamposChange}
-                className="w-full p-2 border border-gray-300 rounded text-black"
-              />
-            </div>
+              <div className="flex-1">
+                <label className="block font-medium text-gray-700 mb-1">Hoja</label>
+                <input
+                  type="text"
+                  name="hoja"
+                  placeholder="Nombre de la hoja"
+                  value={asociarCamposForm.hoja}
+                  onChange={handleAsociarCamposChange}
+                  className="w-full p-2 border border-gray-300 rounded text-black"
+                />
+              </div>
 
-            <div className="flex-1">
-              <label className="block font-medium text-gray-700 mb-1">Rango</label>
-              <input
-                type="text"
-                name="rango"
-                placeholder="Rango de celdas"
-                value={asociarCamposForm.rango}
-                onChange={handleAsociarCamposChange}
-                className="w-full p-2 border border-gray-300 rounded text-black"
-              />
-            </div>
+              <div className="flex-1">
+                <label className="block font-medium text-gray-700 mb-1">Rango</label>
+                <input
+                  type="text"
+                  name="rango"
+                  placeholder="Rango de celdas"
+                  value={asociarCamposForm.rango}
+                  onChange={handleAsociarCamposChange}
+                  className="w-full p-2 border border-gray-300 rounded text-black"
+                />
+              </div>
 
               <div className="flex items-end">
                 <button
                   className="px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
                   onClick={handleSearchBottonClick}
-                  disabled={!asociarCamposForm.campana}
+                  disabled={!asociarCamposForm.campana || !asociarCamposForm.sheetId || !asociarCamposForm.hoja || !asociarCamposForm.rango}
                 >
                   Buscar
                 </button>
               </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block font-medium text-gray-700 mb-1">Encabezados de Sheets</label>
+              <select
+                name="encabezados"
+                value={asociarCamposForm.sheetId || ''}
+                className="w-full p-2 border border-gray-300 rounded"
+                style={selectStyle}
+                disabled={!asociarCamposForm.sheetId} // Deshabilitar si Sheet ID no es válido
+              >
+                <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Encabezados</option>
+                <option style={{ color: 'black', fontWeight: 'bold' }}>
+                  {/* DD */}
+                </option>
+              </select>
             </div>
 
             <div className="mb-6">
@@ -2427,7 +2439,7 @@ const Admin: React.FC = () => {
       
       <ToastContainer 
         position="top-right" 
-        autoClose={5000} 
+        autoClose={3500} 
         hideProgressBar={false} 
         newestOnTop={false} 
         closeOnClick 
