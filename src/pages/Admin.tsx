@@ -6,6 +6,9 @@ import SubcuentaEditModal from './SubcuentaEditModal';
 import NumeroTelefonicoEditModal from './NumeroTelefonicoEditModal';
 import CredencialEditModal from './CredencialEditModal';
 import CampanaEditModal from './CampanaEditModal';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 
 // Interfaces
 interface Usuario {
@@ -459,10 +462,7 @@ const Admin: React.FC = () => {
     console.log("handleBuscarUsuario ejecutado");
 
     if (!email) {
-      setMensaje({
-        texto: 'Debe ingresar un correo electrónico',
-        tipo: 'error'
-      });
+      toast.error('Debe ingresar un correo electrónico');
       return;
     }
 
@@ -1379,9 +1379,12 @@ const Admin: React.FC = () => {
     setSelectedUser(null);
   };
 
-  const handleOtroBotonClick = () => {
-    // Botón temporal como de que no 
-    alert('Otro botón clickeado');
+  const handleSearchBottonClick = () => {
+    const { sheetId, hoja, rango } = asociarCamposForm;
+    console.log("Sheet ID:", sheetId);
+    console.log("Hoja:", hoja);
+    console.log("Rango:", rango);
+    toast.success('Valores de label OBTENIDOS, ESTATUS clickeado');
   };
 
   // Función para consultar Sheets de Google
@@ -2274,46 +2277,46 @@ const Admin: React.FC = () => {
             </div>
 
             <div className="flex flex-wrap gap-4 mb-6">
-              <div className="flex-1">
-                <label className="block font-medium text-gray-700 mb-1">Sheet ID</label>
-                <input
-                  type="text"
-                  name="sheetId"
-                  placeholder="ID de la hoja de cálculo"
-                  value={asociarCamposForm.sheetId}
-                  onChange={handleAsociarCamposChange}
-                  className="w-full p-2 border border-gray-300 rounded text-black"
-                />
-              </div>
+            <div className="flex-1">
+              <label className="block font-medium text-gray-700 mb-1">Sheet ID</label>
+              <input
+                type="text"
+                name="sheetId"
+                placeholder="ID de la hoja de cálculo"
+                value={asociarCamposForm.sheetId}
+                onChange={handleAsociarCamposChange}
+                className="w-full p-2 border border-gray-300 rounded text-black"
+              />
+            </div>
 
-              <div className="flex-1">
-                <label className="block font-medium text-gray-700 mb-1">Hoja</label>
-                <input
-                  type="text"
-                  name="hoja"
-                  placeholder="Nombre de la hoja"
-                  value={asociarCamposForm.hoja}
-                  onChange={handleAsociarCamposChange}
-                  className="w-full p-2 border border-gray-300 rounded text-black"
-                />
-              </div>
+            <div className="flex-1">
+              <label className="block font-medium text-gray-700 mb-1">Hoja</label>
+              <input
+                type="text"
+                name="hoja"
+                placeholder="Nombre de la hoja"
+                value={asociarCamposForm.hoja}
+                onChange={handleAsociarCamposChange}
+                className="w-full p-2 border border-gray-300 rounded text-black"
+              />
+            </div>
 
-              <div className="flex-1">
-                <label className="block font-medium text-gray-700 mb-1">Rango</label>
-                <input
-                  type="text"
-                  name="rango"
-                  placeholder="Rango de celdas"
-                  value={asociarCamposForm.rango}
-                  onChange={handleAsociarCamposChange}
-                  className="w-full p-2 border border-gray-300 rounded text-black"
-                />
-              </div>
+            <div className="flex-1">
+              <label className="block font-medium text-gray-700 mb-1">Rango</label>
+              <input
+                type="text"
+                name="rango"
+                placeholder="Rango de celdas"
+                value={asociarCamposForm.rango}
+                onChange={handleAsociarCamposChange}
+                className="w-full p-2 border border-gray-300 rounded text-black"
+              />
+            </div>
 
               <div className="flex items-end">
                 <button
                   className="px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
-                  onClick={handleOtroBotonClick}
+                  onClick={handleSearchBottonClick}
                   disabled={!asociarCamposForm.campana}
                 >
                   Buscar
@@ -2421,6 +2424,19 @@ const Admin: React.FC = () => {
           isOpen={editCampanaModalOpen}
         />
       )}
+      
+      <ToastContainer 
+        position="top-right" 
+        autoClose={5000} 
+        hideProgressBar={false} 
+        newestOnTop={false} 
+        closeOnClick 
+        rtl={false} 
+        pauseOnFocusLoss 
+        draggable 
+        pauseOnHover 
+        style={{ marginTop: '100px' }} // Ajusta el valor según sea necesario
+      />
 
     </div>
   );
