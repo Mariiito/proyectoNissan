@@ -1378,8 +1378,8 @@ const Admin: React.FC = () => {
       console.log("Sheet data:", data.sheetData);
       toast.success('Datos obtenidos de Google Sheets');
   
-      // Aquí puedes hacer algo con los datos obtenidos, como actualizar el estado
-      // setSheetData(data.sheetData); // Actualiza el estado con los datos obtenidos de Google Sheets
+      // Actualizar el estado con los encabezados obtenidos
+      setSheetHeaders(data.sheetData[0]); // Asumiendo que los encabezados están en la primera fila
     } catch (error) {
       console.error("Could not fetch sheet data:", error);
       toast.error('Error al obtener la hoja');
@@ -1437,6 +1437,8 @@ const Admin: React.FC = () => {
       fetchSheetData(asociarCamposForm.sheetId);
     }
   }, [asociarCamposForm.sheetId]);
+
+  const [sheetHeaders, setSheetHeaders] = useState<string[]>([]);
 
   // Renderizado
   return (
@@ -2333,9 +2335,11 @@ const Admin: React.FC = () => {
                 disabled={!asociarCamposForm.sheetId} // Deshabilitar si Sheet ID no es válido
               >
                 <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Encabezados</option>
-                <option style={{ color: 'black', fontWeight: 'bold' }}>
-                  {/* DD */}
-                </option>
+                {sheetHeaders.map((header, index) => (
+                  <option key={index} value={header} style={{ color: 'black', fontWeight: 'bold' }}>
+                    {header}
+                  </option>
+                ))}
               </select>
             </div>
 

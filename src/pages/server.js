@@ -1081,7 +1081,7 @@ app.get('/sheet/:sheetId', async (req, res) => {
 // Función para autenticar con Google Sheets API
 const authenticateGoogleSheets = async () => {
   const auth = new google.auth.GoogleAuth({
-    keyFile: 'c:\\proyectoNissan\\config_keys.json', // Ruta correcta al archivo de cuenta de servicio
+    keyFile: 'D:\\M_Workspace\\proyectoNissan\\config_keys.json', // Ruta correcta al archivo de cuenta de servicio
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
   return await auth.getClient();
