@@ -1359,10 +1359,11 @@ const Admin: React.FC = () => {
   };
 
   const handleSearchBottonClick = async () => {
-    const { sheetId, campana } = asociarCamposForm;
+    const { sheetId, hoja, campana } = asociarCamposForm;
+    const rango = "A1:ZZ1"; // Rango por defecto
   
     try {
-      const response = await fetch(`http://localhost:3001/sheet/${sheetId}?campaignId=${campana}`);
+      const response = await fetch(`http://localhost:3001/sheet/${sheetId}?sheetName=${hoja}&range=${rango}&campaignId=${campana}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -1374,9 +1375,11 @@ const Admin: React.FC = () => {
         return;
       }
   
-      console.log("Sheet data:", data);
-      toast.success('Hoja encontrada');
+      console.log("Sheet data:", data.sheetData);
+      toast.success('Datos obtenidos de Google Sheets');
+  
       // Aquí puedes hacer algo con los datos obtenidos, como actualizar el estado
+      // setSheetData(data.sheetData); // Actualiza el estado con los datos obtenidos de Google Sheets
     } catch (error) {
       console.error("Could not fetch sheet data:", error);
       toast.error('Error al obtener la hoja');
@@ -2273,17 +2276,17 @@ const Admin: React.FC = () => {
             </div>
 
             <div className="flex flex-wrap gap-4 mb-6">
-            <div className="flex-1">
-              <label className="block font-medium text-gray-700 mb-1">Sheet ID</label>
-              <input
-                type="text"
-                name="sheetId"
-                placeholder="ID de la hoja de cálculo"
-                value={asociarCamposForm.sheetId}
-                onChange={handleAsociarCamposChange}
-                className="w-full p-2 border border-gray-300 rounded text-black"
-              />
-            </div>
+              <div className="flex-1">
+                <label className="block font-medium text-gray-700 mb-1">Sheet ID</label>
+                <input
+                  type="text"
+                  name="sheetId"
+                  placeholder="ID de la hoja de cálculo"
+                  value={asociarCamposForm.sheetId}
+                  onChange={handleAsociarCamposChange}
+                  className="w-full p-2 border border-gray-300 rounded text-black"
+                />
+              </div>
 
               <div className="flex-1">
                 <label className="block font-medium text-gray-700 mb-1">Hoja</label>

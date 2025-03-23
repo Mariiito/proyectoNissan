@@ -31,3 +31,4 @@ dist-ssr
 
 # Ignorar logs y otros archivos innecesarios
 *.log
+config_keys.json

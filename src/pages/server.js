@@ -4,6 +4,7 @@ import cors from 'cors';
 import { pbkdf2Sync, randomBytes } from 'crypto';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
+import { google } from 'googleapis';
 
 const app = express();
 const port = 3001;
@@ -661,7 +662,7 @@ app.get('/sheet_columns/:sheet_id', async (req, res) => {
   const { sheet_id } = req.params;
 
   if (!sheet_id) {
-    return res.status(400).json({ message: 'ID de hoja es requerido' });
+    return res.status(400).json({ message: 'ID del Sheets es requerido' });
   }
 
   try {
@@ -1033,10 +1034,10 @@ app.listen(port, () => {
 
 app.get('/sheet/:sheetId', async (req, res) => {
   const { sheetId } = req.params;
-  const { campaignId } = req.query; // Obtener el campaignId de los parámetros de consulta
+  const { campaignId, sheetName, range } = req.query; // Obtener sheetName y range de los parámetros de consulta
 
-  if (!sheetId || !campaignId) {
-    return res.status(400).json({ message: 'ID de hoja y ID de campaña son requeridos' });
+  if (!sheetId || !campaignId || !sheetName || !range) {
+    return res.status(400).json({ message: 'ID de hoja, ID de campaña, nombre de la hoja y rango son requeridos' });
   }
 
   try {
@@ -1050,14 +1051,41 @@ app.get('/sheet/:sheetId', async (req, res) => {
       return res.status(404).json({ message: 'Hoja no encontrada o no pertenece a la campaña seleccionada' });
     }
 
-    res.status(200).json(results[0]);
+    // Autenticar y obtener datos de Google Sheets
+    const authClient = await authenticateGoogleSheets();
+    const sheets = google.sheets({ version: 'v4', auth: authClient });
+
+    try {
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: `'${sheetName}'!${range}`  // Forzar la interpretación como nombre de hoja
+      });
+
+      // Validar que se tiene acceso a la información
+      if (response.status !== 200) {
+        return res.status(403).json({ message: 'No se tiene acceso a la información de la hoja' });
+      }
+
+      res.status(200).json({ ...results[0], sheetData: response.data.values });
+    } catch (error) {
+      console.error('Error al acceder a Google Sheets:', error);
+      return res.status(500).json({ message: 'Error al acceder a Google Sheets' });
+    }
   } catch (err) {
-    console.error('Error al obtener la hoja:', err);
-    res.status(500).json({ message: 'Error al obtener la hoja' });
+    console.error('Error al acceder al Sheets:', err);
+    res.status(500).json({ message: 'Error al acceder al Sheets' });
   }
 });
 
 
+// Función para autenticar con Google Sheets API
+const authenticateGoogleSheets = async () => {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: 'c:\\proyectoNissan\\config_keys.json', // Ruta correcta al archivo de cuenta de servicio
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+  return await auth.getClient();
+};
 
 
 
