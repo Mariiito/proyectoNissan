@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Ignorar node_modules en backend y frontend
+**/node_modules/
+
+# Ignorar archivos de entorno (credenciales)
+.env
+
+# Ignorar logs y otros archivos innecesarios
+*.log
