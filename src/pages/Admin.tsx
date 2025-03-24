@@ -81,7 +81,7 @@ interface AsociarCamposForm {
   plantilla: number | null;
   whatsapp: string;
   lista_negra: string;
-  extra_uno: string;
+  celular: string;
 }
 
 interface CampaignData {
@@ -220,7 +220,7 @@ const Admin: React.FC = () => {
     plantilla: null,
     whatsapp: '', // Nuevo campo
     lista_negra: '', // Nuevo campo
-    extra_uno: ''  // Nuevo campo
+    celular: ''  // Nuevo campo
   });
 
   const [campaignsData, setCampaignsData] = useState<CampaignData[]>([]);
@@ -1368,6 +1368,17 @@ const Admin: React.FC = () => {
     const { sheetId, hoja, campana } = asociarCamposForm;
     const rango = "A1:ZZ1"; // Rango por defecto
   
+    // Verificar y restablecer los campos seleccionados
+    if (asociarCamposForm.lista_negra) {
+      setAsociarCamposForm(prevForm => ({ ...prevForm, lista_negra: '' }));
+    }
+    if (asociarCamposForm.whatsapp) {
+      setAsociarCamposForm(prevForm => ({ ...prevForm, whatsapp: '' }));
+    }
+    if (asociarCamposForm.celular) {
+      setAsociarCamposForm(prevForm => ({ ...prevForm, celular: '' }));
+    }
+  
     try {
       const response = await fetch(`http://localhost:3001/sheet/${sheetId}?sheetName=${hoja}&range=${rango}&campaignId=${campana}`);
       if (!response.ok) {
@@ -1391,7 +1402,6 @@ const Admin: React.FC = () => {
       toast.error('Error al obtener la hoja');
     }
   };
-
   // Función para consultar Sheets de Google
   const fetchSheetData = async (sheetId: string) => {
     try {
@@ -1461,11 +1471,37 @@ const Admin: React.FC = () => {
   }, [sheetHeaders]);
 
   useEffect(() => {
-    const extraUnoHeader = sheetHeaders.find(header => header.toLowerCase() === 'extra1');
+    const extraUnoHeader = sheetHeaders.find(header => header.toLowerCase() === 'celular');
     if (extraUnoHeader) {
-      setAsociarCamposForm(prevForm => ({ ...prevForm, extra_uno: extraUnoHeader }));
+      setAsociarCamposForm(prevForm => ({ ...prevForm, celular: extraUnoHeader }));
     }
   }, [sheetHeaders]);
+
+
+  // Twilio
+  const [plantillaContenido, setPlantillaContenido] = useState<string | null>(null);
+
+  const fetchPlantillaContenido = async (plantillaId: number) => {
+    try {
+      const response = await fetch(`http://localhost:3001/twilio_template/${plantillaId}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setPlantillaContenido(data.content);
+    } catch (error) {
+      console.error("Could not fetch template content:", error);
+    }
+  };
+
+  const handlePlantillaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedPlantillaId = Number(e.target.value);
+    setAsociarCamposForm(prevForm => ({ ...prevForm, plantilla: selectedPlantillaId }));
+    
+    if (selectedPlantillaId) {
+      await fetchPlantillaContenido(selectedPlantillaId);
+    }
+  };
 
   // Renderizado
   return (
@@ -2354,24 +2390,6 @@ const Admin: React.FC = () => {
 
             <div className="flex gap-4 mb-6">
               <div className="flex-1">
-                <label className="block font-medium text-gray-700 mb-1">WhatsApp</label>
-                <select
-                  name="whatsapp"
-                  value={asociarCamposForm.whatsapp || ''}
-                  onChange={(e) => setAsociarCamposForm(prevForm => ({ ...prevForm, whatsapp: e.target.value }))}
-                  className="w-full p-2 border border-gray-300 rounded"
-                  style={selectStyle}
-                  disabled={!asociarCamposForm.sheetId} 
-                >
-                  <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Sin definir</option>
-                  {sheetHeaders.map((header, index) => (
-                    <option key={index} value={header} style={{ color: 'black', fontWeight: 'bold' }} disabled>
-                      {header}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex-1">
                 <label className="block font-medium text-gray-700 mb-1">Lista Negra</label>
                 <select
                   name="lista_negra"
@@ -2379,7 +2397,7 @@ const Admin: React.FC = () => {
                   onChange={(e) => setAsociarCamposForm(prevForm => ({ ...prevForm, lista_negra: e.target.value }))}
                   className="w-full p-2 border border-gray-300 rounded"
                   style={selectStyle}
-                  disabled={!asociarCamposForm.sheetId} 
+                  disabled={!!asociarCamposForm.sheetId || !asociarCamposForm.sheetId}
                 >
                   <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Sin definir</option>
                   {sheetHeaders.map((header, index) => (
@@ -2390,14 +2408,32 @@ const Admin: React.FC = () => {
                 </select>
               </div>
               <div className="flex-1">
-                <label className="block font-medium text-gray-700 mb-1">Pendiente</label>
+                <label className="block font-medium text-gray-700 mb-1">WhatsApp (estatus)</label>
                 <select
-                  name="extra_uno"
-                  value={asociarCamposForm.extra_uno || ''}
-                  onChange={(e) => setAsociarCamposForm(prevForm => ({ ...prevForm, extra_uno: e.target.value }))}
+                  name="whatsapp"
+                  value={asociarCamposForm.whatsapp || ''}
+                  onChange={(e) => setAsociarCamposForm(prevForm => ({ ...prevForm, whatsapp: e.target.value }))}
                   className="w-full p-2 border border-gray-300 rounded"
                   style={selectStyle}
-                  disabled={!asociarCamposForm.sheetId} 
+                  disabled={!!asociarCamposForm.sheetId || !asociarCamposForm.sheetId} 
+                >
+                  <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Sin definir</option>
+                  {sheetHeaders.map((header, index) => (
+                    <option key={index} value={header} style={{ color: 'black', fontWeight: 'bold' }} disabled>
+                      {header}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex-1">
+                <label className="block font-medium text-gray-700 mb-1">Contacto</label>
+                <select
+                  name="celular"
+                  value={asociarCamposForm.celular || ''}
+                  onChange={(e) => setAsociarCamposForm(prevForm => ({ ...prevForm, celular: e.target.value }))}
+                  className="w-full p-2 border border-gray-300 rounded"
+                  style={selectStyle}
+                  disabled={!!asociarCamposForm.sheetId || !asociarCamposForm.sheetId}
                 >
                   <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Sin definir</option>
                   {sheetHeaders.map((header, index) => (
@@ -2410,11 +2446,11 @@ const Admin: React.FC = () => {
             </div>
 
             <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Plantilla</label>
+              <label className="block font-medium text-gray-700 mb-1">Plantilla de Twilio</label>
               <select
                 name="plantilla"
                 value={asociarCamposForm.plantilla || ''}
-                onChange={(e) => setAsociarCamposForm(prevForm => ({ ...prevForm, plantilla: Number(e.target.value) }))}
+                onChange={handlePlantillaChange}
                 className="w-full p-2 border border-gray-300 rounded"
                 style={selectStyle}
                 disabled={!asociarCamposForm.campana} // Deshabilitar si no hay campaña seleccionada
@@ -2427,6 +2463,13 @@ const Admin: React.FC = () => {
                 ))}
               </select>
             </div>
+
+            {plantillaContenido && (
+              <div className="mt-4 p-4 border border-gray-300 rounded bg-white">
+                <h3 className="text-lg font-semibold mb-2">Contenido de la Plantilla</h3>
+                <pre className="whitespace-pre-wrap text-black">{plantillaContenido}</pre>
+              </div>
+            )}
 
             {/*  */}
 
