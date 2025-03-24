@@ -79,6 +79,9 @@ interface AsociarCamposForm {
   hoja: string;
   rango: string;
   plantilla: number | null;
+  whatsapp: string;
+  lista_negra: string;
+  extra_uno: string;
 }
 
 interface CampaignData {
@@ -214,7 +217,10 @@ const Admin: React.FC = () => {
     sheetId: '',
     hoja: '',
     rango: '',
-    plantilla: null
+    plantilla: null,
+    whatsapp: '', // Nuevo campo
+    lista_negra: '', // Nuevo campo
+    extra_uno: ''  // Nuevo campo
   });
 
   const [campaignsData, setCampaignsData] = useState<CampaignData[]>([]);
@@ -1440,6 +1446,27 @@ const Admin: React.FC = () => {
 
   const [sheetHeaders, setSheetHeaders] = useState<string[]>([]);
 
+  useEffect(() => {
+    const whatsappHeader = sheetHeaders.find(header => header.toLowerCase() === 'whatsapp');
+    if (whatsappHeader) {
+      setAsociarCamposForm(prevForm => ({ ...prevForm, whatsapp: whatsappHeader }));
+    }
+  }, [sheetHeaders]);
+
+  useEffect(() => {
+    const listaNegraHeader = sheetHeaders.find(header => header.toLowerCase() === 'lista_negra');
+    if (listaNegraHeader) {
+      setAsociarCamposForm(prevForm => ({ ...prevForm, lista_negra: listaNegraHeader }));
+    }
+  }, [sheetHeaders]);
+
+  useEffect(() => {
+    const extraUnoHeader = sheetHeaders.find(header => header.toLowerCase() === 'extra1');
+    if (extraUnoHeader) {
+      setAsociarCamposForm(prevForm => ({ ...prevForm, extra_uno: extraUnoHeader }));
+    }
+  }, [sheetHeaders]);
+
   // Renderizado
   return (
     <div className="flex flex-col h-screen bg-gray-100">
@@ -2325,22 +2352,61 @@ const Admin: React.FC = () => {
               </div>
             </div>
 
-            <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Encabezados de Sheets</label>
-              <select
-                name="encabezados"
-                value={asociarCamposForm.sheetId || ''}
-                className="w-full p-2 border border-gray-300 rounded"
-                style={selectStyle}
-                disabled={!asociarCamposForm.sheetId} // Deshabilitar si Sheet ID no es válido
-              >
-                <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Encabezados</option>
-                {sheetHeaders.map((header, index) => (
-                  <option key={index} value={header} style={{ color: 'black', fontWeight: 'bold' }}>
-                    {header}
-                  </option>
-                ))}
-              </select>
+            <div className="flex gap-4 mb-6">
+              <div className="flex-1">
+                <label className="block font-medium text-gray-700 mb-1">WhatsApp</label>
+                <select
+                  name="whatsapp"
+                  value={asociarCamposForm.whatsapp || ''}
+                  onChange={(e) => setAsociarCamposForm(prevForm => ({ ...prevForm, whatsapp: e.target.value }))}
+                  className="w-full p-2 border border-gray-300 rounded"
+                  style={selectStyle}
+                  disabled={!asociarCamposForm.sheetId} 
+                >
+                  <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Sin definir</option>
+                  {sheetHeaders.map((header, index) => (
+                    <option key={index} value={header} style={{ color: 'black', fontWeight: 'bold' }} disabled>
+                      {header}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex-1">
+                <label className="block font-medium text-gray-700 mb-1">Lista Negra</label>
+                <select
+                  name="lista_negra"
+                  value={asociarCamposForm.lista_negra || ''}
+                  onChange={(e) => setAsociarCamposForm(prevForm => ({ ...prevForm, lista_negra: e.target.value }))}
+                  className="w-full p-2 border border-gray-300 rounded"
+                  style={selectStyle}
+                  disabled={!asociarCamposForm.sheetId} 
+                >
+                  <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Sin definir</option>
+                  {sheetHeaders.map((header, index) => (
+                    <option key={index} value={header} style={{ color: 'black', fontWeight: 'bold' }} disabled>
+                      {header}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex-1">
+                <label className="block font-medium text-gray-700 mb-1">Pendiente</label>
+                <select
+                  name="extra_uno"
+                  value={asociarCamposForm.extra_uno || ''}
+                  onChange={(e) => setAsociarCamposForm(prevForm => ({ ...prevForm, extra_uno: e.target.value }))}
+                  className="w-full p-2 border border-gray-300 rounded"
+                  style={selectStyle}
+                  disabled={!asociarCamposForm.sheetId} 
+                >
+                  <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Sin definir</option>
+                  {sheetHeaders.map((header, index) => (
+                    <option key={index} value={header} style={{ color: 'black', fontWeight: 'bold' }} disabled>
+                      {header}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="mb-6">
