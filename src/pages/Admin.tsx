@@ -1549,41 +1549,38 @@ const handlePlantillaChange = async (event: React.ChangeEvent<HTMLSelectElement>
   }, [asociarCamposForm.campana]);
 
   const handleBuscarPlantilla = async () => {
-    const selectedSid = asociarCamposForm.plantilla;
+    const selectedSid = asociarCamposForm.plantilla;  // Obtiene el SID seleccionado
   
-    if (selectedSid) {
-      // Mostrar notificación con el SID seleccionado
-      toast.info(`SID seleccionado: ${selectedSid}`);
-      console.log('SID seleccionado:', selectedSid);
+    if (!selectedSid) {
+      toast.error('Selecciona una plantilla');
+      return;
+    }
   
-      try {
-        const response = await fetch(`/campaigns_by_template/${selectedSid}`);
-        const data = await response.json();
-        if (response.ok) {
-          // Manejar la respuesta de la plantilla aquí
-          console.log('Plantilla:', data);
-          // Actualizar el estado con los datos de la plantilla
-          setPlantillaData(data);
+    console.log('SID seleccionado:', selectedSid);
   
-          // Obtener el contenido de la plantilla de Twilio
-          if (data.sid && data.campaign_id) {
-            await fetchPlantillaContenido(data.sid, data.campaign_id);
-          }
-  
-          // Mostrar notificación de éxito
-          toast.success('Plantilla encontrada exitosamente');
-        } else {
-          console.error('Error al obtener la plantilla:', data.message);
-          // Mostrar notificación de error
-          toast.error('Error al obtener la plantilla: ' + data.message);
-        }
-      } catch (error) {
-        console.error('Error al obtener la plantilla:', error);
-        // Mostrar notificación de error
-        toast.error('Error al obtener la plantilla');
+    try {
+      // Consulta la plantilla en el backend, enviando el SID y el serviceSid
+      const response = await fetch(`http://localhost:3001/twilio_template/${selectedSid}`);
+
+      if (!response.ok) {
+        throw new Error('Error al obtener la plantilla desde Twilio');
       }
+  
+      const data = await response.json();
+      console.log('Plantilla obtenida:', data);
+  
+      // Actualiza el estado con los datos de la plantilla
+      setPlantillaData(data);
+  
+      // Notificación de éxito
+      toast.success('Plantilla encontrada exitosamente');
+  
+    } catch (error) {
+      console.error('Error al obtener la plantilla:', error);
+      toast.error(`Error al obtener la plantillazzzzzzz: `);
     }
   };
+  
 
 
   const fetchTemplatesByCampaign = async (campaignId: number) => {
@@ -2584,22 +2581,13 @@ const handlePlantillaChange = async (event: React.ChangeEvent<HTMLSelectElement>
               </div>
 
               {plantillaData && (
-              <div className="mt-6">
-                <h3 className="text-lg font-medium text-gray-700">Contenido de la Plantilla</h3>
-                <pre className="p-4 border border-gray-300 rounded bg-gray-50">
-                  {JSON.stringify(plantillaData, null, 2)}
-                </pre>
-              </div>
-            )}
-
-            {plantillaContenido && (
-              <div className="mt-6">
-                <h3 className="text-lg font-medium text-gray-700">Contenido de la Plantilla de Twilio</h3>
-                <pre className="p-4 border border-gray-300 rounded bg-gray-50">
-                  {plantillaContenido}
-                </pre>
-              </div>
-            )}
+                <div className="mt-6">
+                  <h3 className="text-lg font-medium text-gray-700">Detalles de la Plantilla</h3>
+                  <pre className="p-4 border border-gray-300 rounded bg-gray-50">
+                    {JSON.stringify(plantillaData, null, 2)}
+                  </pre>
+                </div>
+              )}
             </div>
 
             {/*  */}

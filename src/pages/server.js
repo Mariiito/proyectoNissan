@@ -1119,17 +1119,16 @@ app.get('/templates_by_sid/:sid', async (req, res) => {
 
 app.get('/twilio_template/:sid', async (req, res) => {
   const { sid } = req.params;
-  const { serviceSid } = req.query; // Obtener serviceSid de los parámetros de consulta
 
-  if (!sid || !serviceSid) {
-    return res.status(400).json({ message: 'SID de plantilla y serviceSid son requeridos' });
+  if (!sid) {
+    return res.status(400).json({ message: 'SID de plantilla es requeridos' });
   }
 
   try {
-    const client = twilio(process.env.twilio_sid, process.env.twilio_auth_token);
+    const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
 
-    const template = await client.notify.services(serviceSid)
-      .notifications(sid)
+    const template = await client.messaging.v1.services(sid)
+      .templates(sid)
       .fetch();
 
     res.status(200).json(template);
@@ -1138,6 +1137,7 @@ app.get('/twilio_template/:sid', async (req, res) => {
     res.status(500).json({ message: 'Error al obtener la plantilla de Twilio' });
   }
 });
+
 
 
 
