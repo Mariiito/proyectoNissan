@@ -78,7 +78,8 @@ interface AsociarCamposForm {
   sheetId: string;
   hoja: string;
   rango: string;
-  plantilla: number | null;
+  plantilla: string | null;
+  sid: string;
   whatsapp: string;
   lista_negra: string;
   celular: string;
@@ -127,6 +128,7 @@ interface Plantilla {
   Campos: string;
   Campana: number;
   Creado: string;
+  sid: string;
   Actualizado: string;
 }
 
@@ -218,6 +220,7 @@ const Admin: React.FC = () => {
     hoja: '',
     rango: '',
     plantilla: null,
+    sid: '', // Nuevo campo
     whatsapp: '', // Nuevo campo
     lista_negra: '', // Nuevo campo
     celular: ''  // Nuevo campo
@@ -1418,6 +1421,9 @@ const Admin: React.FC = () => {
   };
 
   const [plantillas, setPlantillas] = useState<Plantilla[]>([]);
+  const [plantillaData, setPlantillaData] = useState(null);
+
+  
 
   const fetchPlantillasByCampana = async (campanaId: number) => {
     try {
@@ -1481,9 +1487,9 @@ const Admin: React.FC = () => {
   // Twilio
   const [plantillaContenido, setPlantillaContenido] = useState<string | null>(null);
 
-  const fetchPlantillaContenido = async (plantillaId: number) => {
+  const fetchPlantillaContenido = async (templateSid: string, serviceSid: string) => {
     try {
-      const response = await fetch(`http://localhost:3001/twilio_template/${plantillaId}`);
+      const response = await fetch(`/twilio_template/${templateSid}?serviceSid=${serviceSid}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -1493,15 +1499,119 @@ const Admin: React.FC = () => {
       console.error("Could not fetch template content:", error);
     }
   };
+//(event: React.ChangeEvent<HTMLSelectElement>)
 
-  const handlePlantillaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedPlantillaId = Number(e.target.value);
-    setAsociarCamposForm(prevForm => ({ ...prevForm, plantilla: selectedPlantillaId }));
-    
-    if (selectedPlantillaId) {
-      await fetchPlantillaContenido(selectedPlantillaId);
+const handlePlantillaChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
+  const selectedSid = event.target.value;
+  setAsociarCamposForm({ ...asociarCamposForm, plantilla: selectedSid });
+
+  if (selectedSid) {
+    try {
+      const response = await fetch(`/templates_by_sid/${selectedSid}`);
+      const data = await response.json();
+      if (response.ok) {
+        // Manejar la respuesta de la plantilla aquí
+        console.log('Plantilla:', data);
+        // Actualizar el estado con los datos de la plantilla
+        setPlantillaData(data);
+
+        // Obtener el contenido de la plantilla de Twilio
+        if (data.sid && data.campaign_id) {
+          await fetchPlantillaContenido(data.sid, data.campaign_id);
+        }
+      } else {
+        console.error('Error al obtener la plantilla:', data.message);
+      }
+    } catch (error) {
+      console.error('Error al obtener la plantilla:', error);
+    }
+  }
+};
+
+  const fetchPlantillas = async (campaignId: number) => {
+    try {
+      const response = await fetch(`/templates_by_campaign/${campaignId}`);
+      const data = await response.json();
+      if (response.ok) {
+        setPlantillas(data);
+      } else {
+        console.error('Error al obtener las plantillas:', data.message);
+      }
+    } catch (error) {
+      console.error('Error al obtener las plantillas:', error);
     }
   };
+
+  useEffect(() => {
+    if (asociarCamposForm.campana) {
+      fetchPlantillas(asociarCamposForm.campana);
+    }
+  }, [asociarCamposForm.campana]);
+
+  const handleBuscarPlantilla = async () => {
+    const selectedSid = asociarCamposForm.plantilla;
+  
+    if (selectedSid) {
+      // Mostrar notificación con el SID seleccionado
+      toast.info(`SID seleccionado: ${selectedSid}`);
+      console.log('SID seleccionado:', selectedSid);
+  
+      try {
+        const response = await fetch(`/campaigns_by_template/${selectedSid}`);
+        const data = await response.json();
+        if (response.ok) {
+          // Manejar la respuesta de la plantilla aquí
+          console.log('Plantilla:', data);
+          // Actualizar el estado con los datos de la plantilla
+          setPlantillaData(data);
+  
+          // Obtener el contenido de la plantilla de Twilio
+          if (data.sid && data.campaign_id) {
+            await fetchPlantillaContenido(data.sid, data.campaign_id);
+          }
+  
+          // Mostrar notificación de éxito
+          toast.success('Plantilla encontrada exitosamente');
+        } else {
+          console.error('Error al obtener la plantilla:', data.message);
+          // Mostrar notificación de error
+          toast.error('Error al obtener la plantilla: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Error al obtener la plantilla:', error);
+        // Mostrar notificación de error
+        toast.error('Error al obtener la plantilla');
+      }
+    }
+  };
+
+
+  const fetchTemplatesByCampaign = async (campaignId: number) => {
+    if (!campaignId) return;
+  
+    try {
+      const response = await fetch(`http://localhost:3001/templates_by_campaign/${campaignId}`);
+      if (!response.ok) {
+        throw new Error('Error al obtener las plantillas');
+      }
+  
+      const data = await response.json();
+      console.log('Plantillas obtenidas:', data);
+  
+      // Guarda las plantillas en el estado
+      setPlantillas(data);
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+  
+  useEffect(() => {
+    if (asociarCamposForm.campana) {
+      fetchTemplatesByCampaign(asociarCamposForm.campana);
+    }
+  }, [asociarCamposForm.campana]);
+
+
 
   // Renderizado
   return (
@@ -2297,97 +2407,98 @@ const Admin: React.FC = () => {
               </div>
             </div>
 
-            <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Subcuenta</label>
-              <select
-                id="subcuenta"
-                name="subcuenta"
-                value={asociarCamposForm.subcuenta || ''}
-                onChange={handleSubcuentaChange}
-                className="w-full p-2 border border-gray-300 rounded"
-                style={selectStyle}
-                disabled={userSubcuentas.length === 0 || !emailValidado}
-              >
-                <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar subcuenta</option>
-                {userSubcuentas.map(subcuenta => (
-                  <option
-                    key={subcuenta.id}
-                    value={subcuenta.id}
-                    style={{ color: 'black', fontWeight: 'bold' }}
-                  >
-                    {subcuenta.Nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <div className="flex gap-4 mb-6">
+              <div className="flex-1">
+                <label className="block font-medium text-gray-700 mb-1">Subcuenta</label>
+                <select
+                  id="subcuenta"
+                  name="subcuenta"
+                  value={asociarCamposForm.subcuenta || ''}
+                  onChange={handleSubcuentaChange}
+                  className="w-full p-2 border border-gray-300 rounded"
+                  style={selectStyle}
+                  disabled={userSubcuentas.length === 0 || !emailValidado}
+                >
+                  <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar subcuenta</option>
+                  {userSubcuentas.map(subcuenta => (
+                    <option
+                      key={subcuenta.id}
+                      value={subcuenta.id}
+                      style={{ color: 'black', fontWeight: 'bold' }}
+                    >
+                      {subcuenta.Nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Campaña</label>
-              <select
-                name="campana"
-                value={asociarCamposForm.campana || ''}
-                onChange={handleCampanaChange}
-                className="w-full p-2 border border-gray-300 rounded"
-                style={selectStyle}
-                disabled={!asociarCamposForm.subcuenta} // Deshabilitar si no hay subcuenta seleccionada
-              >
-                <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar campaña</option>
-                {campanasSubcuenta.map(campana => (
-                  <option key={campana.ID} value={campana.ID} style={{ color: 'black', fontWeight: 'bold' }}>
-                    {campana.Nombre}
-                  </option>
-                ))}
-              </select>
+              <div className="flex-1">
+                <label className="block font-medium text-gray-700 mb-1">Campaña</label>
+                <select
+                  name="campana"
+                  value={asociarCamposForm.campana || ''}
+                  onChange={handleCampanaChange}
+                  className="w-full p-2 border border-gray-300 rounded"
+                  style={selectStyle}
+                  disabled={!asociarCamposForm.subcuenta} // Deshabilitar si no hay subcuenta seleccionada
+                >
+                  <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar campaña</option>
+                  {campanasSubcuenta.map(campana => (
+                    <option key={campana.ID} value={campana.ID} style={{ color: 'black', fontWeight: 'bold' }}>
+                      {campana.Nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-4 mb-6">
-              <div className="flex-1">
-                <label className="block font-medium text-gray-700 mb-1">Sheet ID</label>
-                <input
-                  type="text"
-                  name="sheetId"
-                  placeholder="ID de la hoja de cálculo"
-                  value={asociarCamposForm.sheetId}
-                  onChange={handleAsociarCamposChange}
-                  className="w-full p-2 border border-gray-300 rounded text-black"
-                />
-              </div>
-
-              <div className="flex-1">
-                <label className="block font-medium text-gray-700 mb-1">Hoja</label>
-                <input
-                  type="text"
-                  name="hoja"
-                  placeholder="Nombre de la hoja"
-                  value={asociarCamposForm.hoja}
-                  onChange={handleAsociarCamposChange}
-                  className="w-full p-2 border border-gray-300 rounded text-black"
-                />
-              </div>
-
-              <div className="flex-1">
-                <label className="block font-medium text-gray-700 mb-1">Rango</label>
-                <input
-                  type="text"
-                  name="rango"
-                  placeholder="Rango de celdas"
-                  value={asociarCamposForm.rango}
-                  onChange={handleAsociarCamposChange}
-                  className="w-full p-2 border border-gray-300 rounded text-black"
-                />
-              </div>
-
-              <div className="flex items-end">
-                <button
-                  className="px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
-                  onClick={handleSearchBottonClick}
-                  disabled={!asociarCamposForm.campana || !asociarCamposForm.sheetId || !asociarCamposForm.hoja || !asociarCamposForm.rango}
-                >
-                  Buscar
-                </button>
-              </div>
+            <div className="w-1/2">
+              <label className="block font-medium text-gray-700 mb-1">Sheet ID</label>
+              <input
+                type="text"
+                name="sheetId"
+                placeholder="ID de la hoja de cálculo"
+                value={asociarCamposForm.sheetId}
+                onChange={handleAsociarCamposChange}
+                className="w-full p-2 border border-gray-300 rounded text-black"
+              />
             </div>
 
+            <div className="w-1/6">
+              <label className="block font-medium text-gray-700 mb-1">Hoja</label>
+              <input
+                type="text"
+                name="hoja"
+                placeholder="Hoja Sheets"
+                value={asociarCamposForm.hoja}
+                onChange={handleAsociarCamposChange}
+                className="w-full p-2 border border-gray-300 rounded text-black"
+              />
+            </div>
+
+            <div className="w-1/6">
+              <label className="block font-medium text-gray-700 mb-1">Rango</label>
+              <input
+                type="text"
+                name="rango"
+                placeholder="Celdas"
+                value={asociarCamposForm.rango}
+                onChange={handleAsociarCamposChange}
+                className="w-full p-2 border border-gray-300 rounded text-black"
+              />
+            </div>
+
+            <div className="flex items-end">
+              <button
+                className="px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
+                onClick={handleSearchBottonClick}
+                disabled={!asociarCamposForm.campana || !asociarCamposForm.sheetId || !asociarCamposForm.hoja || !asociarCamposForm.rango}
+              >
+                Buscar
+              </button>
+            </div>
+          </div>
             <div className="flex gap-4 mb-6">
               <div className="flex-1">
                 <label className="block font-medium text-gray-700 mb-1">Lista Negra</label>
@@ -2445,31 +2556,51 @@ const Admin: React.FC = () => {
               </div>
             </div>
 
-            <div className="mb-6">
-              <label className="block font-medium text-gray-700 mb-1">Plantilla de Twilio</label>
-              <select
-                name="plantilla"
-                value={asociarCamposForm.plantilla || ''}
-                onChange={handlePlantillaChange}
-                className="w-full p-2 border border-gray-300 rounded"
-                style={selectStyle}
-                disabled={!asociarCamposForm.campana} // Deshabilitar si no hay campaña seleccionada
-              >
-                <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar plantilla</option>
-                {plantillas.map(plantilla => (
-                  <option key={plantilla.ID} value={plantilla.ID} style={{ color: 'black', fontWeight: 'bold' }}>
-                    {plantilla.Nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <div>
+              <div className="mb-6">
+                <label className="block font-medium text-gray-700 mb-1">Plantilla de Twilio</label>
+                <select
+                  name="plantilla"
+                  value={asociarCamposForm.plantilla || ''}
+                  onChange={handlePlantillaChange}
+                  className="w-full p-2 border border-gray-300 rounded"
+                  style={selectStyle}
+                  disabled={!asociarCamposForm.campana} // Deshabilitar si no hay campaña seleccionada
+                >
+                  <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar plantilla</option>
+                  {plantillas.map((plantilla) => (
+                    <option key={plantilla.ID} value={plantilla.sid} style={{ color: 'black', fontWeight: 'bold' }}>
+                      {plantilla.Nombre}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="mt-2 px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
+                  onClick={handleBuscarPlantilla}
+                  disabled={!asociarCamposForm.plantilla} // Deshabilitar si no hay plantilla seleccionada
+                >
+                  Buscar Plantilla
+                </button>
+              </div>
 
-            {plantillaContenido && (
-              <div className="mt-4 p-4 border border-gray-300 rounded bg-white">
-                <h3 className="text-lg font-semibold mb-2">Contenido de la Plantilla</h3>
-                <pre className="whitespace-pre-wrap text-black">{plantillaContenido}</pre>
+              {plantillaData && (
+              <div className="mt-6">
+                <h3 className="text-lg font-medium text-gray-700">Contenido de la Plantilla</h3>
+                <pre className="p-4 border border-gray-300 rounded bg-gray-50">
+                  {JSON.stringify(plantillaData, null, 2)}
+                </pre>
               </div>
             )}
+
+            {plantillaContenido && (
+              <div className="mt-6">
+                <h3 className="text-lg font-medium text-gray-700">Contenido de la Plantilla de Twilio</h3>
+                <pre className="p-4 border border-gray-300 rounded bg-gray-50">
+                  {plantillaContenido}
+                </pre>
+              </div>
+            )}
+            </div>
 
             {/*  */}
 

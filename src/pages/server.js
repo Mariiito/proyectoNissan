@@ -4,11 +4,17 @@ import cors from 'cors';
 import { pbkdf2Sync, randomBytes } from 'crypto';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
+import twilio from 'twilio';
+import dotenv from 'dotenv';
 import { google } from 'googleapis';
+
+dotenv.config();
 
 const app = express();
 const port = 3001;
 const secretKey = 'tu_secreto';
+
+const client = twilio(process.env.twilio_sid, process.env.twilio_auth_token);
 
 // Configuración de CORS (permitiendo cualquier origen en desarrollo)
 const corsOptions = {
@@ -411,7 +417,6 @@ app.get('/campaigns_by_sub_account/:sub_account_id', async (req, res) => {
 app.get('/templates_by_campaign/:campaign_id', async (req, res) => {
   const { campaign_id } = req.params;
 
-  // Validar que el ID sea un número entero
   if (!campaign_id || isNaN(Number(campaign_id))) {
     return res.status(400).json({ message: 'ID de campaña inválido' });
   }
@@ -422,11 +427,10 @@ app.get('/templates_by_campaign/:campaign_id', async (req, res) => {
         t.id AS ID,
         t.name AS Nombre,
         t.associated_fields AS Campos,
-        t.sid AS SID,
+        t.sid AS sid,           
         t.campaign_id AS Campana,
         DATE_FORMAT(t.created_at, '%d/%m/%Y, %H:%i:%s') AS Creado,
-        DATE_FORMAT(t.updated_at, '%d/%m/%Y, %H:%i:%s') AS Actualizado,
-        'Editar' AS Acciones
+        DATE_FORMAT(t.updated_at, '%d/%m/%Y, %H:%i:%s') AS Actualizado
       FROM 
         Templates t
       WHERE 
@@ -436,13 +440,13 @@ app.get('/templates_by_campaign/:campaign_id', async (req, res) => {
     `;
 
     const [results] = await db.promise().query(sql);
-
-    res.status(200).json(results);
+    res.status(200).json(results);  // Devolver los resultados
   } catch (err) {
-    console.error('Error al ejecutar la consulta:', err);
+    console.error('Error al obtener las plantillas:', err);
     res.status(500).json({ message: 'Error al obtener las plantillas.' });
   }
 });
+
 
 
 // Endpoint para asociar números telefónicos a una subcuenta
@@ -1088,9 +1092,52 @@ const authenticateGoogleSheets = async () => {
 };
 
 
+app.get('/templates_by_sid/:sid', async (req, res) => {
+  const { sid } = req.params;
 
+  if (!sid) {
+    return res.status(400).json({ message: 'SID de plantilla es requerido' });
+  }
 
+  try {
+    const [results] = await db.promise().query(`
+      SELECT id, name, associated_fields, sid, created_at, updated_at, campaign_id
+      FROM Templates
+      WHERE sid = ${db.escape(plantillaNombre)}
+    `, [plantillaNombre]);
 
+    if (results.length === 0) {
+      return res.status(404).json({ message: 'Plantilla no encontrada' });
+    }
+
+    res.status(200).json(results[0]);
+  } catch (err) {
+    console.error('Error al obtener la plantilla:', err);
+    res.status(500).json({ message: 'Error al obtener la plantilla' });
+  }
+});
+
+app.get('/twilio_template/:sid', async (req, res) => {
+  const { sid } = req.params;
+  const { serviceSid } = req.query; // Obtener serviceSid de los parámetros de consulta
+
+  if (!sid || !serviceSid) {
+    return res.status(400).json({ message: 'SID de plantilla y serviceSid son requeridos' });
+  }
+
+  try {
+    const client = twilio(process.env.twilio_sid, process.env.twilio_auth_token);
+
+    const template = await client.notify.services(serviceSid)
+      .notifications(sid)
+      .fetch();
+
+    res.status(200).json(template);
+  } catch (err) {
+    console.error('Error al obtener la plantilla de Twilio:', err);
+    res.status(500).json({ message: 'Error al obtener la plantilla de Twilio' });
+  }
+});
 
 
 
