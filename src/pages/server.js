@@ -15,7 +15,6 @@ const app = express();
 const port = 3001;
 const secretKey = 'tu_secreto';
 
-const client = twilio(process.env.twilio_sid, process.env.twilio_auth_token);
 
 // Configuración de CORS (permitiendo cualquier origen en desarrollo)
 const corsOptions = {
@@ -1126,7 +1125,6 @@ app.get('/twilio_template/:sid', async (req, res) => {
   }
 
   try {
-    const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
 
     // Usar la API de Content Templates
     const template = await client.content.v1.contentTemplates(sid).fetch();
@@ -1142,19 +1140,16 @@ app.get('/twilio_template/:sid', async (req, res) => {
   }
 });
 
-const fetchTwilioCredentials = async (subAccountId) => {
-  console.log("🔍 Buscando credenciales de Twilio para sub_account_id:", subAccountId);
+const fetchTwilioCredentials = async () => {
+  console.log("🔍 Buscando credenciales de Twilio globales");
 
   const [results] = await db.promise().query(
-    `SELECT c.json FROM sub_account_credentials sac
-     JOIN credentials c ON sac.credentials_id = c.id
-     WHERE sac.sub_account_id = ? 
-     AND c.name LIKE '%Twilio%'`,
-    [subAccountId]
+    `SELECT c.json FROM credentials c
+     WHERE c.name LIKE '%Twilio%'`
   );
 
   if (results.length === 0) {
-    console.error("❌ No se encontraron credenciales de Twilio para esta subcuenta.");
+    console.error("❌ No se encontraron credenciales de Twilio.");
     throw new Error('No se encontraron credenciales de Twilio');
   }
 
@@ -1190,6 +1185,34 @@ app.get('/twilio-template/:subAccountId/:templateSid', async (req, res) => {
     console.log({twilio_sid});
     console.log({twilio_auth_token});
 
+    const url = `https://console.twilio.com/v1/ContentTemplates/${templateSid}`;
+    const response = await axios.get(url, {
+      auth: {
+        username: twilio_sid,
+        password: twilio_auth_token
+      }
+    });
+
+    console.log("✅ Plantilla obtenida correctamente:", response.data);
+    res.json(response.data);
+  } catch (error) {
+    console.error("❌ Error al obtener la plantilla dxxxxxe Twilio:", error.response?.data || error.message);
+    res.status(500).json({ message: "Error al obtener la plantilla de Twilio", error: error.response?.data || error.message });
+  }
+});
+
+
+app.get('/twilio-template/:templateSid', async (req, res) => {
+  const { templateSid } = req.params;
+
+  console.log(`📌 Buscando plantilla con SID: ${templateSid}`);
+
+  try {
+    // Obtener credenciales de Twilio (sin subAccountId)
+    const { twilio_sid, twilio_auth_token } = await fetchTwilioCredentials(); // Ajusta esta función si es necesario
+
+    console.log("🔑 Usando credenciales de Twilio:", { twilio_sid });
+
     const url = `https://content.twilio.com/v1/ContentTemplates/${templateSid}`;
     const response = await axios.get(url, {
       auth: {
@@ -1207,34 +1230,13 @@ app.get('/twilio-template/:subAccountId/:templateSid', async (req, res) => {
 });
 
 
-app.get('/twilio-template/:templateSid', async (req, res) => {
-  try {
-    const { templateSid } = req.params;
 
-    console.log(`📌 Buscando plantilla en Twilio con SID: ${templateSid}`);
 
-    // Obtener credenciales de Twilio
-    const { twilio_sid, twilio_auth_token } = await fetchTwilioCredentials();
 
-    console.log("🔑 Usando credenciales de Twilio:", { twilio_sid });
 
-    // Hacer la petición autenticada a la API de Twilio
-    const url = `https://content.twilio.com/v1/ContentTemplates/${templateSid}`;
-    const response = await axios.get(url, {
-      auth: {
-        username: twilio_sid,
-        password: twilio_auth_token
-      }
-    });
 
-    console.log("✅ Plantilla obtenida de Twilio:", response.data);
 
-    res.json(response.data);
-  } catch (error) {
-    console.error("❌ Error al obtener la plantilla de Twilio:", error.response?.data || error.message);
-    res.status(500).json({ message: "Error al obtener la plantilla de Twilio", error: error.response?.data || error.message });
-  }
-});
+
 
 
 
