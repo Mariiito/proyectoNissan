@@ -1,6 +1,7 @@
 import express from 'express';
 import mysql from 'mysql2';
 import cors from 'cors';
+import axios from 'axios';
 import { pbkdf2Sync, randomBytes } from 'crypto';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
@@ -1121,23 +1122,119 @@ app.get('/twilio_template/:sid', async (req, res) => {
   const { sid } = req.params;
 
   if (!sid) {
-    return res.status(400).json({ message: 'SID de plantilla es requeridos' });
+    return res.status(400).json({ message: 'SID de plantilla es requerido' });
   }
 
   try {
     const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
 
-    const template = await client.messaging.v1.services(sid)
-      .templates(sid)
-      .fetch();
+    // Usar la API de Content Templates
+    const template = await client.content.v1.contentTemplates(sid).fetch();
 
-    res.status(200).json(template);
+    res.status(200).json({
+      friendly_name: template.friendlyName,
+      types: template.types,
+      variables: template.variables || {}
+    });
   } catch (err) {
-    console.error('Error al obtener la plantilla de Twilio:', err);
+    console.error('Error al obtener la plantilla de Twilio:', err.message);
     res.status(500).json({ message: 'Error al obtener la plantilla de Twilio' });
   }
 });
 
+const fetchTwilioCredentials = async (subAccountId) => {
+  console.log("🔍 Buscando credenciales de Twilio para sub_account_id:", subAccountId);
+
+  const [results] = await db.promise().query(
+    `SELECT c.json FROM sub_account_credentials sac
+     JOIN credentials c ON sac.credentials_id = c.id
+     WHERE sac.sub_account_id = ? 
+     AND c.name LIKE '%Twilio%'`,
+    [subAccountId]
+  );
+
+  if (results.length === 0) {
+    console.error("❌ No se encontraron credenciales de Twilio para esta subcuenta.");
+    throw new Error('No se encontraron credenciales de Twilio');
+  }
+
+  const credentials = JSON.parse(results[0].json);
+  console.log("✅ Credenciales obtenidas:", credentials);
+
+  if (!credentials.account_sid || !credentials.auth_token) {
+    throw new Error('❌ Credenciales de Twilio inválidas');
+  }
+
+  return {
+    twilio_sid: credentials.account_sid,
+    twilio_auth_token: credentials.auth_token
+  };
+};
+
+
+
+app.get('/twilio-template/:subAccountId/:templateSid', async (req, res) => {
+  const { subAccountId, templateSid } = req.params;
+
+  console.log(`📌 Buscando plantilla con SID: ${templateSid} para subAccountId: ${subAccountId}`);
+
+  try {
+    if (!subAccountId) {
+      console.error("❌ subAccountId no recibido en la petición");
+      return res.status(400).json({ message: "subAccountId es requerido" });
+    }
+
+    const { twilio_sid, twilio_auth_token } = await fetchTwilioCredentials(subAccountId);
+
+    console.log("🔑 Usando credenciales de Twilio:", { twilio_sid });
+    console.log({twilio_sid});
+    console.log({twilio_auth_token});
+
+    const url = `https://content.twilio.com/v1/ContentTemplates/${templateSid}`;
+    const response = await axios.get(url, {
+      auth: {
+        username: twilio_sid,
+        password: twilio_auth_token
+      }
+    });
+
+    console.log("✅ Plantilla obtenida correctamente:", response.data);
+    res.json(response.data);
+  } catch (error) {
+    console.error("❌ Error al obtener la plantilla de Twilio:", error.response?.data || error.message);
+    res.status(500).json({ message: "Error al obtener la plantilla de Twilio", error: error.response?.data || error.message });
+  }
+});
+
+
+app.get('/twilio-template/:templateSid', async (req, res) => {
+  try {
+    const { templateSid } = req.params;
+
+    console.log(`📌 Buscando plantilla en Twilio con SID: ${templateSid}`);
+
+    // Obtener credenciales de Twilio
+    const { twilio_sid, twilio_auth_token } = await fetchTwilioCredentials();
+
+    console.log("🔑 Usando credenciales de Twilio:", { twilio_sid });
+
+    // Hacer la petición autenticada a la API de Twilio
+    const url = `https://content.twilio.com/v1/ContentTemplates/${templateSid}`;
+    const response = await axios.get(url, {
+      auth: {
+        username: twilio_sid,
+        password: twilio_auth_token
+      }
+    });
+
+    console.log("✅ Plantilla obtenida de Twilio:", response.data);
+
+    res.json(response.data);
+  } catch (error) {
+    console.error("❌ Error al obtener la plantilla de Twilio:", error.response?.data || error.message);
+    res.status(500).json({ message: "Error al obtener la plantilla de Twilio", error: error.response?.data || error.message });
+  }
+});
 
 
 

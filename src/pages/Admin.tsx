@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { FaPencilAlt, FaSignOutAlt } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import UserEditModal from './UserEditModal';
+import axios from 'axios';
 import SubcuentaEditModal from './SubcuentaEditModal';
 import NumeroTelefonicoEditModal from './NumeroTelefonicoEditModal';
 import CredencialEditModal from './CredencialEditModal';
@@ -1501,32 +1502,34 @@ const Admin: React.FC = () => {
   };
 //(event: React.ChangeEvent<HTMLSelectElement>)
 
-const handlePlantillaChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
-  const selectedSid = event.target.value;
-  setAsociarCamposForm({ ...asociarCamposForm, plantilla: selectedSid });
+  const handlePlantillaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedSid = e.target.value;
+    setAsociarCamposForm(prevForm => ({ ...prevForm, plantilla: selectedSid }));
 
-  if (selectedSid) {
+    if (!selectedSid) return;
+
     try {
-      const response = await fetch(`/templates_by_sid/${selectedSid}`);
-      const data = await response.json();
-      if (response.ok) {
-        // Manejar la respuesta de la plantilla aquí
-        console.log('Plantilla:', data);
-        // Actualizar el estado con los datos de la plantilla
-        setPlantillaData(data);
+      const response = await axios.get(`https://content.twilio.com/v1/ContentTemplates/${selectedSid}`, {
+        params: { subAccountId: asociarCamposForm.subcuenta } // O usa name si lo prefieres
+      });
 
-        // Obtener el contenido de la plantilla de Twilio
-        if (data.sid && data.campaign_id) {
-          await fetchPlantillaContenido(data.sid, data.campaign_id);
-        }
-      } else {
-        console.error('Error al obtener la plantilla:', data.message);
+      if (response.data) {
+        const { friendly_name, body, variables } = response.data;
+        setAsociarCamposForm(prevForm => ({
+          ...prevForm,
+          plantilla: friendly_name,
+          sid: selectedSid,
+          body,
+          variables
+        }));
       }
     } catch (error) {
-      console.error('Error al obtener la plantilla:', error);
+      console.error("Error al obtener la plantilla de Twilio:", error);
     }
-  }
-};
+  };
+
+
+
 
   const fetchPlantillas = async (campaignId: number) => {
     try {
@@ -1550,36 +1553,44 @@ const handlePlantillaChange = async (event: React.ChangeEvent<HTMLSelectElement>
 
   const handleBuscarPlantilla = async () => {
     const selectedSid = asociarCamposForm.plantilla;  // Obtiene el SID seleccionado
+    const subAccountId = asociarCamposForm.subcuenta;
   
     if (!selectedSid) {
       toast.error('Selecciona una plantilla');
       return;
     }
+
+    if (!subAccountId) {
+      toast.error("No hay subAccountId disponible");
+      return;
+    }
   
-    console.log('SID seleccionado:', selectedSid);
+    console.log('🚀 SID seleccionado:', selectedSid);
   
     try {
-      // Consulta la plantilla en el backend, enviando el SID y el serviceSid
-      const response = await fetch(`http://localhost:3001/twilio_template/${selectedSid}`);
+      const response = await fetch(`http://localhost:3001/twilio-template/${subAccountId}/${selectedSid}`);
 
       if (!response.ok) {
-        throw new Error('Error al obtener la plantilla desde Twilio');
+        const errorText = await response.text();
+        throw new Error(`Error del backend: ${errorText}`);
       }
-  
+
       const data = await response.json();
-      console.log('Plantilla obtenida:', data);
-  
-      // Actualiza el estado con los datos de la plantilla
+      console.log("✅ Plantilla obtenida:", data);
+
       setPlantillaData(data);
-  
-      // Notificación de éxito
-      toast.success('Plantilla encontrada exitosamente');
-  
+      toast.success("Plantilla encontrada exitosamente");
     } catch (error) {
-      console.error('Error al obtener la plantilla:', error);
-      toast.error(`Error al obtener la plantillazzzzzzz: `);
+      console.error("❌ Error al obtener la plantilla:", error);
+      if (error instanceof Error) {
+        toast.error(`Error al obtener la plantilla: ${error.message}`);
+      } else {
+        toast.error('Error al obtener la plantilla: Error desconocido');
+      }
     }
   };
+  
+  
   
 
 
