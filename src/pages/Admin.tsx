@@ -228,7 +228,6 @@ const Admin: React.FC = () => {
   });
 
   const [campaignsData, setCampaignsData] = useState<CampaignData[]>([]);
-  const [filteredCampaigns, setFilteredCampaigns] = useState<CampaignData[]>([]);
   const [numberPhonesData, setNumberPhonesData] = useState<NumberPhoneData[]>([]);
   // Estado para controlar la paginación
   const [paginaActual, setPaginaActual] = useState(1);
@@ -246,11 +245,6 @@ const Admin: React.FC = () => {
       textareaRef.current.value = '{\n  "key": "value"\n}';
     }
   }, [tabActiva]);
-
-  const filterCampaignsBySubcuenta = (subcuentaId: number) => {
-    const filtered = campaignsData.filter(campana => Number(campana.Subcuenta) === subcuentaId);
-    setFilteredCampaigns(filtered);
-  };
 
   const handleSubcuentaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedSubcuenta = Number(e.target.value);
@@ -1502,31 +1496,28 @@ const Admin: React.FC = () => {
   };
 //(event: React.ChangeEvent<HTMLSelectElement>)
 
-  const handlePlantillaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedSid = e.target.value;
-    setAsociarCamposForm(prevForm => ({ ...prevForm, plantilla: selectedSid }));
+const handlePlantillaChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const selectedSid = e.target.value;
+  setAsociarCamposForm(prevForm => ({ ...prevForm, plantilla: selectedSid }));
 
-    if (!selectedSid) return;
+  if (!selectedSid) return;
 
-    try {
-      const response = await axios.get(`https://content.twilio.com/v1/ContentTemplates/${selectedSid}`, {
-        params: { subAccountId: asociarCamposForm.subcuenta } // O usa name si lo prefieres
-      });
-
-      if (response.data) {
-        const { friendly_name, body, variables } = response.data;
-        setAsociarCamposForm(prevForm => ({
-          ...prevForm,
-          plantilla: friendly_name,
-          sid: selectedSid,
-          body,
-          variables
-        }));
-      }
-    } catch (error) {
-      console.error("Error al obtener la plantilla de Twilio:", error);
+  try {
+    const response = await axios.get(`https://content.twilio.com/v1/ContentTemplates/${selectedSid}`);
+    if (response.data) {
+      const { friendly_name, body, variables } = response.data;
+      setAsociarCamposForm(prevForm => ({
+        ...prevForm,
+        plantilla: friendly_name,
+        sid: selectedSid,
+        body,
+        variables
+      }));
     }
-  };
+  } catch (error) {
+    console.error("Error al obtener la plantilla de Twilio:", error);
+  }
+};
 
 
 
@@ -1552,41 +1543,30 @@ const Admin: React.FC = () => {
   }, [asociarCamposForm.campana]);
 
   const handleBuscarPlantilla = async () => {
-    const selectedSid = asociarCamposForm.plantilla;  // Obtiene el SID seleccionado
-    const subAccountId = asociarCamposForm.subcuenta;
+    const selectedSid = asociarCamposForm.plantilla; // Obtiene el SID seleccionado
   
     if (!selectedSid) {
       toast.error('Selecciona una plantilla');
-      return;
-    }
-
-    if (!subAccountId) {
-      toast.error("No hay subAccountId disponible");
       return;
     }
   
     console.log('🚀 SID seleccionado:', selectedSid);
   
     try {
-      const response = await fetch(`http://localhost:3001/twilio-template/${subAccountId}/${selectedSid}`);
-
+      const response = await fetch(`http://localhost:3001/twilio-template/${selectedSid}`);
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorText = await response.text(); // Extraer el texto del error
+        toast.error(`Error al obtener la plantilla: ${errorText}`);
         throw new Error(`Error del backend: ${errorText}`);
       }
-
+  
       const data = await response.json();
       console.log("✅ Plantilla obtenida:", data);
-
+  
       setPlantillaData(data);
       toast.success("Plantilla encontrada exitosamente");
     } catch (error) {
       console.error("❌ Error al obtener la plantilla:", error);
-      if (error instanceof Error) {
-        toast.error(`Error al obtener la plantilla: ${error.message}`);
-      } else {
-        toast.error('Error al obtener la plantilla: Error desconocido');
-      }
     }
   };
   
@@ -1619,7 +1599,21 @@ const Admin: React.FC = () => {
     }
   }, [asociarCamposForm.campana]);
 
+  interface TwilioTemplate {
+    friendly_name: string;
+    body: string;
+    variables: any;
+  }
 
+  interface TwilioTemplateResponse {
+  friendly_name: string;
+  variables?: any;
+  types?: {
+    'twilio/quick-reply'?: { body: string };
+    'twilio/text'?: { body: string };
+    [key: string]: any;
+  };
+}
 
   // Renderizado
   return (
@@ -1640,6 +1634,7 @@ const Admin: React.FC = () => {
         <button className={`px-4 py-2 whitespace-nowrap ${tabActiva === 'asociar-numeros' ? 'bg-[#673ab7]' : 'hover:bg-gray-700'}`} onClick={() => setTabActiva('asociar-numeros')}>Asociar números telefónicos</button>
         <button className={`px-4 py-2 whitespace-nowrap ${tabActiva === 'asociar-credenciales' ? 'bg-[#673ab7]' : 'hover:bg-gray-700'}`} onClick={() => setTabActiva('asociar-credenciales')}>Asociar credenciales</button>
         <button className={`px-4 py-2 whitespace-nowrap ${tabActiva === 'crear-campana' ? 'bg-[#673ab7]' : 'hover:bg-gray-700'}`} onClick={() => setTabActiva('crear-campana')}>Crear campaña</button>
+        <button className={`px-4 py-2 whitespace-nowrap ${tabActiva === 'plantillas' ? 'bg-[#673ab7]' : 'hover:bg-gray-700'}`} onClick={() => setTabActiva('plantillas')}>Guardar Sheets</button>
         <button className={`px-4 py-2 whitespace-nowrap ${tabActiva === 'asociar-campos' ? 'bg-[#673ab7]' : 'hover:bg-gray-700'}`} onClick={() => setTabActiva('asociar-campos')}>Asociar campos</button>
         <button className={`px-4 py-2 whitespace-nowrap ${tabActiva === 'usuarios' ? 'bg-[#673ab7]' : 'hover:bg-gray-700'}`} onClick={() => setTabActiva('usuarios')}>Usuarios</button>
         <button className={`px-4 py-2 whitespace-nowrap ${tabActiva === 'subcuentas-tab' ? 'bg-[#673ab7]' : 'hover:bg-gray-700'}`} onClick={() => setTabActiva('subcuentas-tab')}>Subcuentas</button>
@@ -2369,6 +2364,65 @@ const Admin: React.FC = () => {
             </div>
           </div>
         )}
+
+        {tabActiva === 'plantillas' && ( // VISCA BARÇA
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Sheets</h2>
+            <div className="mb-6">
+              <label className="block font-medium text-gray-700 mb-1">Sheet ID</label>
+              <input
+                type="text"
+                name="sheetId"
+                placeholder="ID de la hoja de cálculo"
+                value={asociarCamposForm.sheetId}
+                onChange={handleAsociarCamposChange}
+                className="w-full p-2 border border-gray-300 rounded text-black"
+              />
+            </div>
+
+            <div className="flex gap-4 items-end mb-6">
+              <div className="flex flex-wrap gap-4 mb-6">
+                <div>
+                  <label className="block font-medium text-gray-700 mb-1">Hoja</label>
+                  <input
+                    type="text"
+                    name="hoja"
+                    placeholder="Hoja Sheets"
+                    value={asociarCamposForm.hoja}
+                    onChange={handleAsociarCamposChange}
+                    className="w-full p-2 border border-gray-300 rounded text-black"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-medium text-gray-700 mb-1">Rango</label>
+                  <input
+                    type="text"
+                    name="rango"
+                    placeholder="Celdas"
+                    value={asociarCamposForm.rango}
+                    onChange={handleAsociarCamposChange}
+                    className="w-full p-2 border border-gray-300 rounded text-black"
+                  />
+                </div>
+
+                <div className="flex items-end">
+                  <button
+                    className="px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
+                    onClick={handleSearchBottonClick}
+                    disabled={!asociarCamposForm.campana || !asociarCamposForm.sheetId || !asociarCamposForm.hoja || !asociarCamposForm.rango}
+                  >
+                    Buscar
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <hr className="border-t-2 border-gray-200 dark:border-gray-700 mb-6" />
+            
+              
+          </div>
+        )}
         {/* ZZZ
 
 
@@ -2461,52 +2515,52 @@ const Admin: React.FC = () => {
             </div>
 
             <div className="flex flex-wrap gap-4 mb-6">
-            <div className="w-1/2">
-              <label className="block font-medium text-gray-700 mb-1">Sheet ID</label>
-              <input
-                type="text"
-                name="sheetId"
-                placeholder="ID de la hoja de cálculo"
-                value={asociarCamposForm.sheetId}
-                onChange={handleAsociarCamposChange}
-                className="w-full p-2 border border-gray-300 rounded text-black"
-              />
-            </div>
+              <div className="w-1/2">
+                <label className="block font-medium text-gray-700 mb-1">Sheet ID</label>
+                <input
+                  type="text"
+                  name="sheetId"
+                  placeholder="ID de la hoja de cálculo"
+                  value={asociarCamposForm.sheetId}
+                  onChange={handleAsociarCamposChange}
+                  className="w-full p-2 border border-gray-300 rounded text-black"
+                />
+              </div>
 
-            <div className="w-1/6">
-              <label className="block font-medium text-gray-700 mb-1">Hoja</label>
-              <input
-                type="text"
-                name="hoja"
-                placeholder="Hoja Sheets"
-                value={asociarCamposForm.hoja}
-                onChange={handleAsociarCamposChange}
-                className="w-full p-2 border border-gray-300 rounded text-black"
-              />
-            </div>
+              <div className="w-1/6">
+                <label className="block font-medium text-gray-700 mb-1">Hoja</label>
+                <input
+                  type="text"
+                  name="hoja"
+                  placeholder="Hoja Sheets"
+                  value={asociarCamposForm.hoja}
+                  onChange={handleAsociarCamposChange}
+                  className="w-full p-2 border border-gray-300 rounded text-black"
+                />
+              </div>
 
-            <div className="w-1/6">
-              <label className="block font-medium text-gray-700 mb-1">Rango</label>
-              <input
-                type="text"
-                name="rango"
-                placeholder="Celdas"
-                value={asociarCamposForm.rango}
-                onChange={handleAsociarCamposChange}
-                className="w-full p-2 border border-gray-300 rounded text-black"
-              />
-            </div>
+              <div className="w-1/6">
+                <label className="block font-medium text-gray-700 mb-1">Rango</label>
+                <input
+                  type="text"
+                  name="rango"
+                  placeholder="Celdas"
+                  value={asociarCamposForm.rango}
+                  onChange={handleAsociarCamposChange}
+                  className="w-full p-2 border border-gray-300 rounded text-black"
+                />
+              </div>
 
-            <div className="flex items-end">
-              <button
-                className="px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
-                onClick={handleSearchBottonClick}
-                disabled={!asociarCamposForm.campana || !asociarCamposForm.sheetId || !asociarCamposForm.hoja || !asociarCamposForm.rango}
-              >
-                Buscar
-              </button>
+              <div className="flex items-end">
+                <button
+                  className="px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
+                  onClick={handleSearchBottonClick}
+                  disabled={!asociarCamposForm.campana || !asociarCamposForm.sheetId || !asociarCamposForm.hoja || !asociarCamposForm.rango}
+                >
+                  Buscar
+                </button>
+              </div>
             </div>
-          </div>
             <div className="flex gap-4 mb-6">
               <div className="flex-1">
                 <label className="block font-medium text-gray-700 mb-1">Lista Negra</label>
@@ -2566,30 +2620,39 @@ const Admin: React.FC = () => {
 
             <div>
               <div className="mb-6">
-                <label className="block font-medium text-gray-700 mb-1">Plantilla de Twilio</label>
-                <select
-                  name="plantilla"
-                  value={asociarCamposForm.plantilla || ''}
-                  onChange={handlePlantillaChange}
-                  className="w-full p-2 border border-gray-300 rounded"
-                  style={selectStyle}
-                  disabled={!asociarCamposForm.campana} // Deshabilitar si no hay campaña seleccionada
-                >
-                  <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar plantilla</option>
-                  {plantillas.map((plantilla) => (
-                    <option key={plantilla.ID} value={plantilla.sid} style={{ color: 'black', fontWeight: 'bold' }}>
-                      {plantilla.Nombre}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  className="mt-2 px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
-                  onClick={handleBuscarPlantilla}
-                  disabled={!asociarCamposForm.plantilla} // Deshabilitar si no hay plantilla seleccionada
-                >
-                  Buscar Plantilla
-                </button>
+                <div className="flex gap-4 items-end mb-6">
+                  <div className="flex-1">
+                    <label className="block font-medium text-gray-700 mb-1">Plantilla de Twilio</label>
+                    <select
+                      name="plantilla"
+                      value={asociarCamposForm.plantilla || ''}
+                      onChange={handlePlantillaChange}
+                      className="w-full p-2 border border-gray-300 rounded"
+                      style={selectStyle}
+                      disabled={!asociarCamposForm.campana} // Deshabilitar si no hay campaña seleccionada
+                    >
+                      <option value="" disabled style={{ color: 'black', fontWeight: 'bold' }}>Seleccionar plantilla</option>
+                      {plantillas.map((plantilla) => (
+                        <option key={plantilla.ID} value={plantilla.sid} style={{ color: 'black', fontWeight: 'bold' }}>
+                          {plantilla.Nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <button
+                      className="px-4 py-2 bg-[#673ab7] text-white rounded hover:bg-[#7b1fa2]"
+                      onClick={handleBuscarPlantilla}
+                      disabled={!asociarCamposForm.plantilla} // Deshabilitar si no hay plantilla seleccionada
+                    >
+                      Buscar Plantilla
+                    </button>
+                  </div>
+                </div>
               </div>
+
+              <hr className="border-t-2 border-gray-200 dark:border-gray-700 mb-6" />
 
               {plantillaData && (
                 <div className="mt-6">
